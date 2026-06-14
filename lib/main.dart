@@ -34,9 +34,6 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          // Request notification permissions
-          NotificationService.requestPermissions();
-
           return MaterialApp(
             title: 'Memzy',
             debugShowCheckedModeBanner: false,

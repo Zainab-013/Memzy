@@ -9,6 +9,7 @@ import '../providers/theme_provider.dart';
 import '../models/message.dart';
 import '../theme/stitch_theme.dart';
 import 'chat_info_screen.dart';
+import '../widgets/full_screen_image_viewer.dart';
 
 class ConversationScreen extends StatefulWidget {
   final String chatId;
@@ -25,6 +26,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   
   bool _isSelectionMode = false;
   final Set<String> _selectedMessageIds = {};
+  bool _isSearching = false;
+  String _searchQuery = "";
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -37,6 +41,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   void dispose() {
     _textController.dispose();
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -185,7 +190,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 28),
@@ -205,6 +210,12 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
     final chat = chatProvider.chats.firstWhere((c) => c.id == widget.chatId);
     final messages = chatProvider.getMessagesForChat(widget.chatId);
+    final displayedMessages = _searchQuery.isEmpty
+        ? messages
+        : messages
+            .where((m) => m.text.toLowerCase().contains(_searchQuery.toLowerCase()))
+            .toList();
+
     final allStarred = _selectedMessageIds.isNotEmpty &&
         messages.where((m) => _selectedMessageIds.contains(m.id)).every((m) => m.isStarred);
 
@@ -254,76 +265,98 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => Navigator.pop(context),
               ),
-              titleSpacing: 0,
-              title: Row(
-                children: [
-                  // Chat icon avatar with active indicator
-                  Stack(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: avatarBgColor,
-                        ),
-                        child: Icon(
-                          IconData(chat.iconCode, fontFamily: 'MaterialIcons'),
-                          color: avatarIconColor,
-                          size: 20,
-                        ),
+              title: _isSearching
+                  ? TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Search messages...',
+                        border: InputBorder.none,
                       ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark ? StitchTheme.darkBackground : Colors.white,
-                              width: 2,
-                            ),
-                          ),
-                        ),
+                      style: TextStyle(
+                        color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
                       ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  // Header titles
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                    )
+                  : Row(
                       children: [
-                        Text(
-                          chat.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        // Chat icon avatar with active indicator
+                        Stack(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: avatarBgColor,
+                              ),
+                              child: Icon(
+                                IconData(chat.iconCode, fontFamily: 'MaterialIcons'),
+                                color: avatarIconColor,
+                                size: 20,
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isDark ? StitchTheme.darkBackground : Colors.white,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const Text(
-                          'Digital Brain Active',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: StitchTheme.outline,
+                        const SizedBox(width: 12),
+                        // Header titles
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                chat.title,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const Text(
+                                'Digital Brain Active',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: StitchTheme.outline,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.search),
+                  icon: Icon(_isSearching ? Icons.close : Icons.search),
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Search in conversation coming soon!'), duration: Duration(seconds: 1)),
-                    );
+                    setState(() {
+                      if (_isSearching) {
+                        _isSearching = false;
+                        _searchQuery = "";
+                        _searchController.clear();
+                      } else {
+                        _isSearching = true;
+                      }
+                    });
                   },
                 ),
                 PopupMenuButton<String>(
@@ -358,7 +391,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           children: [
             // Chat messages canvas
             Expanded(
-              child: messages.isEmpty
+              child: displayedMessages.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -370,7 +403,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            "Start your memory chain.\nSend files or set reminders directly.",
+                            _searchQuery.isEmpty
+                                ? "Start your memory chain.\nSend files or set reminders directly."
+                                : "No matching messages found.",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
@@ -382,7 +417,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                   : ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.all(16.0),
-                      itemCount: messages.length + 1, // extra item for Date Separator
+                      itemCount: displayedMessages.length + 1, // extra item for Date Separator
                       itemBuilder: (context, index) {
                         if (index == 0) {
                           // Date separator bubble
@@ -406,7 +441,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                           );
                         }
 
-                        final msg = messages[index - 1];
+                        final msg = displayedMessages[index - 1];
                         return _buildMessageBubble(msg, isDark, chatProvider);
                       },
                     ),
@@ -459,7 +494,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                         color: isDark ? StitchTheme.darkSurfaceContainerLow : StitchTheme.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
                         ),
                       ),
                       child: Row(
@@ -542,6 +577,17 @@ class _ConversationScreenState extends State<ConversationScreen> {
                         _selectedMessageIds.add(msg.id);
                       }
                     });
+                  } else if (msg.type == 'image') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FullScreenImageViewer(
+                          imagePath: msg.fileLocalPath,
+                          fileName: msg.fileName ?? "image.jpg",
+                          heroTag: msg.fileLocalPath ?? (msg.fileName ?? msg.id),
+                        ),
+                      ),
+                    );
                   }
                 },
                 onLongPress: () {
@@ -572,7 +618,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     borderRadius: isMe ? StitchTheme.userBubbleRadius : StitchTheme.systemBubbleRadius,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 4,
                         offset: const Offset(0, 1),
                       ),
@@ -650,17 +696,20 @@ class _ConversationScreenState extends State<ConversationScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: msg.fileLocalPath != null
-                ? Image.file(
-                    File(msg.fileLocalPath!),
-                    fit: BoxFit.cover,
-                  )
-                : Container(
-                    height: 150,
-                    color: Colors.grey.shade300,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.image, size: 48),
-                  ),
+            child: Hero(
+              tag: msg.fileLocalPath ?? (msg.fileName ?? msg.id),
+              child: msg.fileLocalPath != null
+                  ? Image.file(
+                      File(msg.fileLocalPath!),
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      height: 150,
+                      color: Colors.grey.shade300,
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.image, size: 48),
+                    ),
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -681,7 +730,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: isPdf ? Colors.red.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+              color: isPdf ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -709,7 +758,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       : msg.type.toUpperCase(),
                   style: TextStyle(
                     fontSize: 11,
-                    color: msg.sender == 'user' ? Colors.white.withOpacity(0.7) : StitchTheme.outline,
+                    color: msg.sender == 'user' ? Colors.white.withValues(alpha: 0.7) : StitchTheme.outline,
                   ),
                 ),
               ],
@@ -731,64 +780,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
-  void _showMessageOptions(Message msg, ChatProvider provider) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              const Text(
-                'Message Options',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const Divider(),
-              ListTile(
-                leading: Icon(msg.isStarred ? Icons.star : Icons.star_border, color: Colors.amber),
-                title: Text(msg.isStarred ? 'Unstar Message' : 'Star Message'),
-                onTap: () {
-                  provider.toggleStarMessage(msg.id);
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Delete Message', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  provider.deleteMessage(msg.id);
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.select_all),
-                title: const Text('Select Multiple'),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _isSelectionMode = true;
-                    _selectedMessageIds.add(msg.id);
-                  });
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.close),
-                title: const Text('Cancel'),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   Future<void> _starSelectedMessages(ChatProvider provider) async {
     final messages = provider.getMessagesForChat(widget.chatId);

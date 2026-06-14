@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -125,6 +124,40 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Create a reminder directly (can be standalone or linked to a chat)
+  Future<Reminder> createReminder({
+    required String chatId,
+    required String messageId,
+    required String content,
+    required DateTime time,
+  }) async {
+    final reminderId = _uuid.v4();
+    final reminder = Reminder(
+      id: reminderId,
+      chatId: chatId,
+      messageId: messageId,
+      content: content,
+      time: time,
+      isCompleted: false,
+      createdAt: DateTime.now(),
+    );
+
+    await DatabaseService.remindersBox.put(reminder.id, reminder);
+    _reminders.add(reminder);
+
+    // Schedule Notification (Hash code of UUID for unique int id)
+    final notificationId = reminderId.hashCode;
+    await NotificationService.scheduleNotification(
+      id: notificationId,
+      title: "Memzy Reminder",
+      body: content,
+      scheduledTime: time,
+    );
+
+    notifyListeners();
+    return reminder;
+  }
+
   // Send message
   Future<void> sendMessage({
     required String chatId,
@@ -155,27 +188,11 @@ class ChatProvider extends ChangeNotifier {
     if (type == 'text') {
       final parseResult = ReminderParser.parse(text);
       if (parseResult != null) {
-        final reminderId = _uuid.v4();
-        final reminder = Reminder(
-          id: reminderId,
+        await createReminder(
           chatId: chatId,
           messageId: messageId,
           content: parseResult.content,
           time: parseResult.time,
-          isCompleted: false,
-          createdAt: DateTime.now(),
-        );
-
-        await DatabaseService.remindersBox.put(reminder.id, reminder);
-        _reminders.add(reminder);
-
-        // Schedule Notification (Hash code of UUID for unique int id)
-        final notificationId = reminderId.hashCode;
-        await NotificationService.scheduleNotification(
-          id: notificationId,
-          title: "Memzy Reminder",
-          body: parseResult.content,
-          scheduledTime: parseResult.time,
         );
 
         // Format and add system response message

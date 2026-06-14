@@ -58,18 +58,6 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
       }
     }
 
-    final avatarBgColor = chat.title == "Placement Prep"
-        ? StitchTheme.primaryFixed
-        : (chat.title == "College Notes"
-            ? StitchTheme.secondaryFixed
-            : StitchTheme.tertiaryFixedDim);
-
-    final avatarIconColor = chat.title == "Placement Prep"
-        ? StitchTheme.onPrimaryFixed
-        : (chat.title == "College Notes"
-            ? StitchTheme.onSecondaryFixed
-            : StitchTheme.onTertiaryFixedVariant);
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -111,7 +99,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: StitchTheme.primary.withOpacity(0.2),
+                            color: StitchTheme.primary.withValues(alpha: 0.2),
                             blurRadius: 16,
                             offset: const Offset(0, 4),
                           ),
@@ -292,7 +280,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         );
                         if (confirm == true) {
                           await chatProvider.clearChatLogs(widget.chatId);
-                          if (mounted) {
+                          if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Chat logs cleared'), duration: Duration(seconds: 1)),
                             );
@@ -474,7 +462,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
         color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
         ),
       ),
       child: Row(
@@ -483,7 +471,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: StitchTheme.primary.withOpacity(0.1),
+              color: StitchTheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.link, color: StitchTheme.primary),
@@ -527,11 +515,11 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark
-            ? StitchTheme.primary.withOpacity(0.05)
-            : StitchTheme.secondaryFixed.withOpacity(0.15),
+            ? StitchTheme.primary.withValues(alpha: 0.05)
+            : StitchTheme.secondaryFixed.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: StitchTheme.secondary.withOpacity(0.2),
+          color: StitchTheme.secondary.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -539,7 +527,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: StitchTheme.secondary.withOpacity(0.15),
+              color: StitchTheme.secondary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.notifications_active, color: StitchTheme.secondary, size: 18),
@@ -596,7 +584,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           color: isDark ? StitchTheme.darkSurfaceContainerLow : StitchTheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
           ),
         ),
         child: Column(
@@ -620,6 +608,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
   void _showAddReminderDialog(BuildContext context, ChatProvider provider, bool isDark) {
     final titleController = TextEditingController();
     DateTime selectedDateTime = DateTime.now().add(const Duration(hours: 1));
+    int selectedOption = 1;
 
     showDialog(
       context: context,
@@ -631,18 +620,72 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               title: const Text('Add Reminder'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextField(
                     controller: titleController,
                     decoration: const InputDecoration(labelText: 'Reminder details'),
                   ),
                   const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const Text(
+                    'Schedule:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      const Text('Schedule:'),
-                      TextButton(
-                        onPressed: () async {
+                      _buildTimeChip(
+                        label: 'In 1 Hr',
+                        isSelected: selectedOption == 1,
+                        onTap: () {
+                          setModalState(() {
+                            selectedOption = 1;
+                            selectedDateTime = DateTime.now().add(const Duration(hours: 1));
+                          });
+                        },
+                        isDark: isDark,
+                      ),
+                      _buildTimeChip(
+                        label: 'In 3 Hrs',
+                        isSelected: selectedOption == 2,
+                        onTap: () {
+                          setModalState(() {
+                            selectedOption = 2;
+                            selectedDateTime = DateTime.now().add(const Duration(hours: 3));
+                          });
+                        },
+                        isDark: isDark,
+                      ),
+                      _buildTimeChip(
+                        label: 'Tomorrow 8 AM',
+                        isSelected: selectedOption == 3,
+                        onTap: () {
+                          setModalState(() {
+                            selectedOption = 3;
+                            final tomorrow = DateTime.now().add(const Duration(days: 1));
+                            selectedDateTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8, 0);
+                          });
+                        },
+                        isDark: isDark,
+                      ),
+                      _buildTimeChip(
+                        label: 'Tomorrow 10 PM',
+                        isSelected: selectedOption == 4,
+                        onTap: () {
+                          setModalState(() {
+                            selectedOption = 4;
+                            final tomorrow = DateTime.now().add(const Duration(days: 1));
+                            selectedDateTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 22, 0);
+                          });
+                        },
+                        isDark: isDark,
+                      ),
+                      _buildTimeChip(
+                        label: 'Custom...',
+                        isSelected: selectedOption == 5,
+                        onTap: () async {
                           final date = await showDatePicker(
                             context: context,
                             initialDate: selectedDateTime,
@@ -656,6 +699,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                             );
                             if (time != null) {
                               setModalState(() {
+                                selectedOption = 5;
                                 selectedDateTime = DateTime(
                                   date.year,
                                   date.month,
@@ -667,12 +711,40 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                             }
                           }
                         },
-                        child: Text(
-                          DateFormat('MMM d, h:mm a').format(selectedDateTime),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                        isDark: isDark,
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.access_time_filled,
+                          size: 16,
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Will remind on: ${DateFormat('MMM d, yyyy - h:mm a').format(selectedDateTime)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -702,6 +774,40 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildTimeChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    final activeColor = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
+    final activeTextColor = isDark ? Colors.black : Colors.white;
+    final inactiveBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100;
+    final inactiveBorderColor = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.grey.shade300;
+    final inactiveTextColor = isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface;
+
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      labelStyle: TextStyle(
+        color: isSelected ? activeTextColor : inactiveTextColor,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 13,
+      ),
+      selectedColor: activeColor,
+      backgroundColor: inactiveBgColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isSelected ? Colors.transparent : inactiveBorderColor,
+        ),
+      ),
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

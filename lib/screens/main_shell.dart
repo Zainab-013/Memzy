@@ -10,6 +10,8 @@ import '../theme/stitch_theme.dart';
 import 'chats_home_screen.dart';
 import 'all_reminders_screen.dart';
 import 'share_target_dialog.dart';
+import '../services/notification_service.dart';
+import 'package:intl/intl.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -31,6 +33,8 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _initSharingIntent();
+    // Request notification permissions once on app startup
+    NotificationService.requestPermissions();
   }
 
   @override
@@ -105,25 +109,25 @@ class _MainShellState extends State<MainShell> {
         index: _selectedIndex,
         children: _screens,
       ),
-      floatingActionButton: _selectedIndex == 0
-          ? Padding(
-              padding: const EdgeInsets.only(bottom: 72.0), // elevate above nav bar
-              child: FloatingActionButton(
-                backgroundColor: StitchTheme.primary,
-                foregroundColor: Colors.white,
-                shape: const CircleBorder(),
-                elevation: 4,
-                onPressed: () => _showCreateChatDialog(context),
-                child: const Icon(Icons.add, size: 28),
-              ),
-            )
-          : null,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 72.0), // elevate above nav bar
+        child: FloatingActionButton(
+          backgroundColor: StitchTheme.primary,
+          foregroundColor: Colors.white,
+          shape: const CircleBorder(),
+          elevation: 4,
+          onPressed: _selectedIndex == 0
+              ? () => _showCreateChatDialog(context)
+              : () => _showCreateReminderDialog(context),
+          child: const Icon(Icons.add, size: 28),
+        ),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -133,7 +137,7 @@ class _MainShellState extends State<MainShell> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
             child: Container(
-              color: (isDark ? StitchTheme.darkSurface : Colors.white).withOpacity(0.7),
+              color: (isDark ? StitchTheme.darkSurface : Colors.white).withValues(alpha: 0.7),
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -184,7 +188,7 @@ class _MainShellState extends State<MainShell> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
             decoration: BoxDecoration(
               color: isSelected
-                  ? activeColor.withOpacity(0.12)
+                  ? activeColor.withValues(alpha: 0.12)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(20),
             ),
@@ -298,12 +302,12 @@ class _MainShellState extends State<MainShell> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: isIconSelected
-                                  ? highlightColor.withOpacity(0.2)
+                                  ? highlightColor.withValues(alpha: 0.2)
                                   : Colors.transparent,
                               border: Border.all(
                                 color: isIconSelected
                                     ? highlightColor
-                                    : (isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade300),
+                                    : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.shade300),
                                 width: 2,
                               ),
                             ),
@@ -348,6 +352,330 @@ class _MainShellState extends State<MainShell> {
           },
         );
       },
+    );
+  }
+
+  // Create Dialog for adding custom reminders manually
+  void _showCreateReminderDialog(BuildContext context) async {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+
+    final activeChats = chatProvider.chats.where((c) => !c.isArchived).toList();
+    String selectedChatId = 'none';
+
+    final contentController = TextEditingController();
+    DateTime selectedDateTime = DateTime.now().add(const Duration(hours: 1));
+    int selectedOption = 1;
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final highlightColor = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
+            return AlertDialog(
+              backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Text(
+                'New Reminder Task',
+                style: TextStyle(
+                  color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: contentController,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: 'What to remember?',
+                        labelStyle: TextStyle(
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: highlightColor),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      style: TextStyle(
+                        color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Schedule Time:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildTimeChip(
+                          label: 'In 1 Hr',
+                          isSelected: selectedOption == 1,
+                          onTap: () {
+                            setModalState(() {
+                              selectedOption = 1;
+                              selectedDateTime = DateTime.now().add(const Duration(hours: 1));
+                            });
+                          },
+                          isDark: isDark,
+                        ),
+                        _buildTimeChip(
+                          label: 'In 3 Hrs',
+                          isSelected: selectedOption == 2,
+                          onTap: () {
+                            setModalState(() {
+                              selectedOption = 2;
+                              selectedDateTime = DateTime.now().add(const Duration(hours: 3));
+                            });
+                          },
+                          isDark: isDark,
+                        ),
+                        _buildTimeChip(
+                          label: 'Tomorrow 8 AM',
+                          isSelected: selectedOption == 3,
+                          onTap: () {
+                            setModalState(() {
+                              selectedOption = 3;
+                              final tomorrow = DateTime.now().add(const Duration(days: 1));
+                              selectedDateTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8, 0);
+                            });
+                          },
+                          isDark: isDark,
+                        ),
+                        _buildTimeChip(
+                          label: 'Tomorrow 10 PM',
+                          isSelected: selectedOption == 4,
+                          onTap: () {
+                            setModalState(() {
+                              selectedOption = 4;
+                              final tomorrow = DateTime.now().add(const Duration(days: 1));
+                              selectedDateTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 22, 0);
+                            });
+                          },
+                          isDark: isDark,
+                        ),
+                        _buildTimeChip(
+                          label: 'Custom...',
+                          isSelected: selectedOption == 5,
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDateTime,
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (date != null && context.mounted) {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(selectedDateTime),
+                              );
+                              if (time != null) {
+                                setModalState(() {
+                                  selectedOption = 5;
+                                  selectedDateTime = DateTime(
+                                    date.year,
+                                    date.month,
+                                    date.day,
+                                    time.hour,
+                                    time.minute,
+                                  );
+                                });
+                              }
+                            }
+                          },
+                          isDark: isDark,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.access_time_filled,
+                            size: 16,
+                            color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Will remind on: ${DateFormat('MMM d, yyyy - h:mm a').format(selectedDateTime)}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Associate with Thread:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      dropdownColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
+                      initialValue: selectedChatId,
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: highlightColor),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      style: TextStyle(
+                        color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                      ),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: 'none',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.label_off_outlined,
+                                size: 18,
+                                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'None (Standalone)',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ...activeChats.map((chat) => DropdownMenuItem<String>(
+                          value: chat.id,
+                          child: Row(
+                            children: [
+                              Icon(
+                                IconData(chat.iconCode, fontFamily: 'MaterialIcons'),
+                                size: 18,
+                                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  chat.title,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                      ],
+                      onChanged: (val) {
+                        setModalState(() {
+                          selectedChatId = val ?? 'none';
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: StitchTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                  ),
+                  onPressed: () async {
+                    final text = contentController.text.trim();
+                    if (text.isNotEmpty) {
+                      if (selectedChatId == 'none') {
+                        await chatProvider.createReminder(
+                          chatId: 'none',
+                          messageId: 'none',
+                          content: text,
+                          time: selectedDateTime,
+                        );
+                      } else {
+                        final formattedText = "$text. Remind me on ${DateFormat('d MMMM').format(selectedDateTime)} at ${DateFormat('h:mm a').format(selectedDateTime)}";
+                        await chatProvider.sendMessage(
+                          chatId: selectedChatId,
+                          text: formattedText,
+                        );
+                      }
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    }
+                  },
+                  child: const Text('Create'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTimeChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    final activeColor = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
+    final activeTextColor = isDark ? Colors.black : Colors.white;
+    final inactiveBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100;
+    final inactiveBorderColor = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.grey.shade300;
+    final inactiveTextColor = isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface;
+
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      labelStyle: TextStyle(
+        color: isSelected ? activeTextColor : inactiveTextColor,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 13,
+      ),
+      selectedColor: activeColor,
+      backgroundColor: inactiveBgColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isSelected ? Colors.transparent : inactiveBorderColor,
+        ),
+      ),
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

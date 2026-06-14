@@ -6,6 +6,7 @@ import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/message.dart';
 import '../theme/stitch_theme.dart';
+import '../widgets/full_screen_image_viewer.dart';
 
 class ChatAttachmentsScreen extends StatefulWidget {
   final String chatId;
@@ -168,78 +169,6 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
     );
   }
 
-  void _showItemOptions(String messageId, ChatProvider provider) {
-    // Find the message from provider state by id
-    Message? msg;
-    try {
-      msg = provider.getMessagesForChat(widget.chatId).firstWhere((m) => m.id == messageId);
-    } catch (_) {}
-
-    if (msg == null) return;
-    final isStarred = msg.isStarred;
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              const Text(
-                'Attachment Options',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const Divider(),
-              ListTile(
-                leading: Icon(isStarred ? Icons.star : Icons.star_border, color: Colors.amber),
-                title: Text(isStarred ? 'Unstar Item' : 'Star Item'),
-                onTap: () {
-                  provider.toggleStarMessage(messageId);
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Delete', style: TextStyle(color: Colors.red)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await provider.deleteMessage(messageId);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Item deleted'), duration: Duration(seconds: 1)),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.select_all),
-                title: const Text('Select Multiple'),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _isSelectionMode = true;
-                    _selectedItemIds.add(messageId);
-                  });
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.close),
-                title: const Text('Cancel'),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   Future<void> _starSelectedItems(ChatProvider provider) async {
     final messages = provider.getMessagesForChat(widget.chatId);
@@ -339,6 +268,17 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                       _selectedItemIds.add(msg.id);
                     }
                   });
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => FullScreenImageViewer(
+                        imagePath: msg.fileLocalPath,
+                        fileName: msg.fileName ?? "image.jpg",
+                        heroTag: "attachment_${msg.fileLocalPath ?? msg.id}",
+                      ),
+                    ),
+                  );
                 }
               },
               onLongPress: () {
@@ -359,9 +299,12 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: msg.fileLocalPath != null
-                        ? Image.file(
-                            File(msg.fileLocalPath!),
-                            fit: BoxFit.cover,
+                        ? Hero(
+                            tag: "attachment_${msg.fileLocalPath ?? msg.id}",
+                            child: Image.file(
+                              File(msg.fileLocalPath!),
+                              fit: BoxFit.cover,
+                            ),
                           )
                         : const Center(child: Icon(Icons.image, color: StitchTheme.outline)),
                   ),
@@ -431,7 +374,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                         color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
                         ),
                       ),
                       child: Row(
@@ -440,7 +383,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: isPdf ? Colors.red.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                              color: isPdf ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
@@ -537,7 +480,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                         color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
                         ),
                       ),
                       child: Row(
@@ -546,7 +489,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: StitchTheme.primary.withOpacity(0.1),
+                              color: StitchTheme.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(Icons.link, color: StitchTheme.primary),
@@ -638,7 +581,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                         color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
                         ),
                       ),
                       child: Column(
@@ -726,7 +669,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                         color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
                         ),
                       ),
                       child: Column(

@@ -57,11 +57,9 @@ class StitchTheme {
       colorScheme: const ColorScheme.light(
         primary: primary,
         secondary: secondary,
-        background: background,
         surface: surface,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
-        onBackground: onSurface,
         onSurface: onSurface,
         onSurfaceVariant: onSurfaceVariant,
         outline: outline,
@@ -116,11 +114,9 @@ class StitchTheme {
       colorScheme: const ColorScheme.dark(
         primary: primaryFixedDim,
         secondary: secondaryFixedDim,
-        background: darkBackground,
         surface: darkSurface,
         onPrimary: onPrimaryFixed,
         onSecondary: onSecondaryFixed,
-        onBackground: darkOnBackground,
         onSurface: darkOnSurface,
         onSurfaceVariant: darkOnSurfaceVariant,
         outline: outline,

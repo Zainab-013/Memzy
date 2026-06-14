@@ -6,6 +6,7 @@ import '../providers/theme_provider.dart';
 import '../models/chat.dart';
 import '../theme/stitch_theme.dart';
 import 'conversation_screen.dart';
+import 'archived_chats_screen.dart';
 
 class ChatsHomeScreen extends StatefulWidget {
   const ChatsHomeScreen({super.key});
@@ -95,9 +96,8 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
               });
             },
           ),
-          // Theme Toggle matching the HTML design (Pill-shaped toggle button)
           Padding(
-            padding: const EdgeInsets.only(right: 16.0),
+            padding: const EdgeInsets.only(right: 8.0),
             child: Center(
               child: GestureDetector(
                 onTap: () => themeProvider.toggleTheme(),
@@ -108,7 +108,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                     borderRadius: BorderRadius.circular(99),
                     color: isDark
                         ? StitchTheme.primary
-                        : StitchTheme.secondaryFixedDim.withOpacity(0.8),
+                        : StitchTheme.secondaryFixedDim.withValues(alpha: 0.8),
                   ),
                   child: Stack(
                     children: [
@@ -136,6 +136,28 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                 ),
               ),
             ),
+          ),
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.more_vert,
+              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+            ),
+            onSelected: (value) {
+              if (value == 'archived') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ArchivedChatsScreen(),
+                  ),
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'archived',
+                child: Text('Archived Chats'),
+              ),
+            ],
           ),
         ],
       ),
@@ -227,7 +249,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                           Text(
                             "You've saved ${chatProvider.reminders.length} important reminders. Keep going!",
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 14,
                             ),
                           ),
@@ -271,7 +293,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                           height: 80,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                           ),
                         ),
                       ),
@@ -336,12 +358,14 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
         if (direction == DismissDirection.startToEnd) {
           // Toggle Pin
           await provider.togglePinChat(chat.id);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(chat.isPinned ? 'Chat Pinned' : 'Chat Unpinned'),
-              duration: const Duration(seconds: 1),
-            ),
-          );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(chat.isPinned ? 'Chat Pinned' : 'Chat Unpinned'),
+                duration: const Duration(seconds: 1),
+              ),
+            );
+          }
           return false; // Don't remove widget from list
         } else {
           // Confirm Delete
@@ -382,7 +406,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
               : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -399,6 +423,9 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                   builder: (context) => ConversationScreen(chatId: chat.id),
                 ),
               );
+            },
+            onLongPress: () {
+              _showChatOptionsSheet(context, chat, provider, isDark);
             },
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -483,6 +510,98 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showChatOptionsSheet(BuildContext context, Chat chat, ChatProvider provider, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Text(
+                chat.title,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const Divider(),
+              ListTile(
+                leading: Icon(chat.isPinned ? Icons.push_pin_outlined : Icons.push_pin, color: StitchTheme.primary),
+                title: Text(chat.isPinned ? 'Unpin Chat' : 'Pin Chat'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await provider.togglePinChat(chat.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(chat.isPinned ? 'Chat Unpinned' : 'Chat Pinned'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.archive, color: StitchTheme.secondary),
+                title: const Text('Archive Chat'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await provider.toggleArchiveChat(chat.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Chat Archived'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Delete Chat', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Delete Memory Thread?'),
+                      content: const Text(
+                          'This will permanently delete this chat thread and all its reminders.'),
+                      actions: [
+                        TextButton(
+                          child: const Text('Cancel'),
+                          onPressed: () => Navigator.of(context).pop(false),
+                        ),
+                        TextButton(
+                          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                          onPressed: () => Navigator.of(context).pop(true),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    await provider.deleteChat(chat.id);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('Cancel'),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 }

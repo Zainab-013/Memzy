@@ -150,7 +150,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.grey.shade200,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
+                        color: Colors.black.withValues(alpha: 0.06),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -182,7 +182,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                           height: 140,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                           ),
                         ),
                       ),
@@ -196,7 +196,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                             Text(
                               'Tip of the day'.toUpperCase(),
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1.5,
@@ -274,11 +274,11 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
         color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
