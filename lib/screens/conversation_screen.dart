@@ -205,6 +205,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
     final chat = chatProvider.chats.firstWhere((c) => c.id == widget.chatId);
     final messages = chatProvider.getMessagesForChat(widget.chatId);
+    final allStarred = _selectedMessageIds.isNotEmpty &&
+        messages.where((m) => _selectedMessageIds.contains(m.id)).every((m) => m.isStarred);
 
     // Suggestion chips matching HTML prototypes
     final suggestionChips = chat.title == "Placement Prep"
@@ -238,7 +240,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
               title: Text('${_selectedMessageIds.length} Selected'),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.star, color: Colors.amber),
+                  icon: Icon(allStarred ? Icons.star_border : Icons.star, color: Colors.amber),
                   onPressed: () => _starSelectedMessages(chatProvider),
                 ),
                 IconButton(
@@ -789,10 +791,19 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   Future<void> _starSelectedMessages(ChatProvider provider) async {
-    for (var id in _selectedMessageIds) {
-      final msg = provider.getMessagesForChat(widget.chatId).firstWhere((m) => m.id == id);
-      if (!msg.isStarred) {
-        await provider.toggleStarMessage(id);
+    final messages = provider.getMessagesForChat(widget.chatId);
+    final selectedMsgs = messages.where((m) => _selectedMessageIds.contains(m.id)).toList();
+    final allStarred = selectedMsgs.isNotEmpty && selectedMsgs.every((m) => m.isStarred);
+
+    for (var msg in selectedMsgs) {
+      if (allStarred) {
+        if (msg.isStarred) {
+          await provider.toggleStarMessage(msg.id);
+        }
+      } else {
+        if (!msg.isStarred) {
+          await provider.toggleStarMessage(msg.id);
+        }
       }
     }
     setState(() {
@@ -801,7 +812,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selected messages starred'), duration: Duration(seconds: 1)),
+        SnackBar(
+          content: Text(allStarred ? 'Selected messages unstarred' : 'Selected messages starred'),
+          duration: const Duration(seconds: 1),
+        ),
       );
     }
   }
