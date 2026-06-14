@@ -365,8 +365,8 @@ class _MainShellState extends State<MainShell> {
     String selectedChatId = 'none';
 
     final contentController = TextEditingController();
-    DateTime selectedDateTime = DateTime.now().add(const Duration(hours: 1));
-    int selectedOption = 1;
+    DateTime selectedDateTime = DateTime.now().add(const Duration(minutes: 1));
+    int selectedOption = 0;
 
     if (!context.mounted) return;
 
@@ -420,6 +420,17 @@ class _MainShellState extends State<MainShell> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
+                        _buildTimeChip(
+                          label: 'In 1 Min',
+                          isSelected: selectedOption == 0,
+                          onTap: () {
+                            setModalState(() {
+                              selectedOption = 0;
+                              selectedDateTime = DateTime.now().add(const Duration(minutes: 1));
+                            });
+                          },
+                          isDark: isDark,
+                        ),
                         _buildTimeChip(
                           label: 'In 1 Hr',
                           isSelected: selectedOption == 1,

@@ -87,6 +87,7 @@ class NotificationService {
     String? payload,
   }) async {
     if (scheduledTime.isBefore(DateTime.now())) {
+      debugPrint("Notification ignored: Scheduled time ($scheduledTime) is in the past compared to current time (${DateTime.now()})");
       return;
     }
 
@@ -95,12 +96,19 @@ class NotificationService {
       tz.UTC,
     );
 
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'memzy_reminders_channel_id',
-      'Memzy Reminders',
-      channelDescription: 'Channel for Memzy personal memory assistant reminders',
+    debugPrint("Scheduling notification: ID: $id, Title: '$title', Time: $tzScheduledTime (UTC), Milliseconds: ${tzScheduledTime.millisecondsSinceEpoch}");
+
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'memzy_alarm_reminders_channel_v1',
+      'Memzy Alarm Reminders',
+      channelDescription: 'Channel for high priority, alarm-like reminders',
       importance: Importance.max,
       priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      vibrationPattern: Int64List.fromList(<int>[0, 1000, 500, 1000, 500, 1000, 500, 1000]),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      additionalFlags: Int32List.fromList(<int>[4]), // FLAG_INSISTENT loops sound and vibration until dismissed
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
@@ -109,7 +117,7 @@ class NotificationService {
       presentSound: true,
     );
 
-    const NotificationDetails details = NotificationDetails(
+    final NotificationDetails details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -126,6 +134,7 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: payload,
       );
+      debugPrint("Notification scheduled successfully via exact alarm!");
     } catch (e) {
       debugPrint("SecurityException or error scheduling exact alarm: $e. Falling back to inexact alarm.");
       try {
@@ -140,6 +149,7 @@ class NotificationService {
               UILocalNotificationDateInterpretation.absoluteTime,
           payload: payload,
         );
+        debugPrint("Notification scheduled successfully via inexact alarm fallback!");
       } catch (e2) {
         debugPrint("Failed to schedule fallback alarm: $e2");
       }
