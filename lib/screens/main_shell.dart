@@ -1,11 +1,15 @@
 import 'dart:ui';
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../theme/stitch_theme.dart';
 import 'chats_home_screen.dart';
 import 'all_reminders_screen.dart';
+import 'share_target_dialog.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -16,11 +20,78 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  StreamSubscription? _intentSub;
 
   final List<Widget> _screens = const [
     ChatsHomeScreen(),
     AllRemindersScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initSharingIntent();
+  }
+
+  @override
+  void dispose() {
+    _intentSub?.cancel();
+    super.dispose();
+  }
+
+  void _initSharingIntent() {
+    // Listen to media/text sharing coming from outside the app while the app is in memory
+    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((List<SharedMediaFile> value) {
+      _handleSharedFiles(value);
+    }, onError: (err) {
+      debugPrint("getMediaStream error: $err");
+    });
+
+    // Get the media/text sharing that brought the app to life from a closed state
+    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> value) {
+      if (value.isNotEmpty && mounted) {
+        _handleSharedFiles(value);
+      }
+      ReceiveSharingIntent.instance.reset();
+    });
+  }
+
+  void _handleSharedFiles(List<SharedMediaFile> files) {
+    if (files.isEmpty || !mounted) return;
+    final file = files.first;
+    
+    if (file.type == SharedMediaType.text || file.type == SharedMediaType.url) {
+      showDialog(
+        context: context,
+        builder: (context) => ShareTargetDialog(
+          sharedText: file.path,
+          sharedType: 'text',
+        ),
+      );
+    } else {
+      final path = file.path;
+      final extension = path.split('.').last.toLowerCase();
+      
+      String type = 'document';
+      if (extension == 'jpg' || extension == 'jpeg' || extension == 'png' || extension == 'gif') {
+        type = 'image';
+      } else if (extension == 'pdf') {
+        type = 'pdf';
+      }
+
+      final name = path.split(Platform.isWindows ? '\\' : '/').last;
+
+      showDialog(
+        context: context,
+        builder: (context) => ShareTargetDialog(
+          sharedFilePath: path,
+          sharedFileName: name,
+          sharedType: type,
+        ),
+      );
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -155,6 +226,7 @@ class _MainShellState extends State<MainShell> {
       Icons.event,
       Icons.school,
       Icons.star,
+      Icons.person,
     ];
 
     showDialog(

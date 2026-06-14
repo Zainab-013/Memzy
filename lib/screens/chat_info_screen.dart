@@ -7,6 +7,7 @@ import '../providers/theme_provider.dart';
 import '../models/message.dart';
 import '../models/reminder.dart';
 import '../theme/stitch_theme.dart';
+import 'chat_attachments_screen.dart';
 
 class ChatInfoScreen extends StatefulWidget {
   final String chatId;
@@ -148,8 +149,11 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
 
               // Media Bento Grid Section
               _buildSectionHeader('Media, Links and Docs', () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('See all attachments coming soon!'), duration: Duration(seconds: 1)),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatAttachmentsScreen(chatId: widget.chatId),
+                  ),
                 );
               }, isDark),
               const SizedBox(height: 12),

@@ -22,6 +22,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
+  
+  bool _isSelectionMode = false;
+  final Set<String> _selectedMessageIds = {};
 
   @override
   void initState() {
@@ -221,110 +224,133 @@ class _ConversationScreenState extends State<ConversationScreen> {
             : StitchTheme.onTertiaryFixedVariant);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            // Chat icon avatar with active indicator
-            Stack(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: avatarBgColor,
-                  ),
-                  child: Icon(
-                    IconData(chat.iconCode, fontFamily: 'MaterialIcons'),
-                    color: avatarIconColor,
-                    size: 20,
-                  ),
+      appBar: _isSelectionMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _isSelectionMode = false;
+                    _selectedMessageIds.clear();
+                  });
+                },
+              ),
+              title: Text('${_selectedMessageIds.length} Selected'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.star, color: Colors.amber),
+                  onPressed: () => _starSelectedMessages(chatProvider),
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isDark ? StitchTheme.darkBackground : Colors.white,
-                        width: 2,
-                      ),
-                    ),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _deleteSelectedMessages(chatProvider),
                 ),
               ],
-            ),
-            const SizedBox(width: 12),
-            // Header titles
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            )
+          : AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
+              titleSpacing: 0,
+              title: Row(
                 children: [
-                  Text(
-                    chat.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  // Chat icon avatar with active indicator
+                  Stack(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: avatarBgColor,
+                        ),
+                        child: Icon(
+                          IconData(chat.iconCode, fontFamily: 'MaterialIcons'),
+                          color: avatarIconColor,
+                          size: 20,
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark ? StitchTheme.darkBackground : Colors.white,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Text(
-                    'Digital Brain Active',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: StitchTheme.outline,
+                  const SizedBox(width: 12),
+                  // Header titles
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          chat.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const Text(
+                          'Digital Brain Active',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: StitchTheme.outline,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Search in conversation coming soon!'), duration: Duration(seconds: 1)),
+                    );
+                  },
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) async {
+                    if (value == 'clear') {
+                      await chatProvider.clearChatLogs(widget.chatId);
+                    } else if (value == 'info') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatInfoScreen(chatId: widget.chatId),
+                        ),
+                      );
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'info',
+                      child: Text('Chat Info'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'clear',
+                      child: Text('Clear Chat Logs', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Search in conversation coming soon!'), duration: Duration(seconds: 1)),
-              );
-            },
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) async {
-              if (value == 'clear') {
-                await chatProvider.clearChatLogs(widget.chatId);
-              } else if (value == 'info') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatInfoScreen(chatId: widget.chatId),
-                  ),
-                );
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'info',
-                child: Text('Chat Info'),
-              ),
-              const PopupMenuItem(
-                value: 'clear',
-                child: Text('Clear Chat Logs', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          ),
-        ],
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -488,8 +514,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   Widget _buildMessageBubble(Message msg, bool isDark, ChatProvider provider) {
     final isMe = msg.sender == 'user';
     final formattedTime = DateFormat('h:mm a').format(msg.timestamp);
+    final isSelected = _selectedMessageIds.contains(msg.id);
 
-    return Align(
+    final bubbleWidget = Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
         crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -504,7 +531,25 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 const SizedBox(width: 4),
               ],
               GestureDetector(
-                onLongPress: () => provider.toggleStarMessage(msg.id),
+                onTap: () {
+                  if (_isSelectionMode) {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedMessageIds.remove(msg.id);
+                      } else {
+                        _selectedMessageIds.add(msg.id);
+                      }
+                    });
+                  }
+                },
+                onLongPress: () {
+                  if (!_isSelectionMode) {
+                    setState(() {
+                      _isSelectionMode = true;
+                      _selectedMessageIds.add(msg.id);
+                    });
+                  }
+                },
                 child: Container(
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.75,
@@ -558,6 +603,42 @@ class _ConversationScreenState extends State<ConversationScreen> {
         ],
       ),
     );
+
+    if (_isSelectionMode) {
+      final checkbox = GestureDetector(
+        onTap: () {
+          setState(() {
+            if (isSelected) {
+              _selectedMessageIds.remove(msg.id);
+            } else {
+              _selectedMessageIds.add(msg.id);
+            }
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 20.0),
+          child: Icon(
+            isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+            color: StitchTheme.primary,
+            size: 24,
+          ),
+        ),
+      );
+
+      return Row(
+        children: isMe
+            ? [
+                Expanded(child: bubbleWidget),
+                checkbox,
+              ]
+            : [
+                checkbox,
+                Expanded(child: bubbleWidget),
+              ],
+      );
+    }
+
+    return bubbleWidget;
   }
 
   Widget _buildBubbleContent(Message msg, bool isDark) {
@@ -645,6 +726,118 @@ class _ConversationScreenState extends State<ConversationScreen> {
               : (isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface),
         ),
       );
+    }
+  }
+
+  void _showMessageOptions(Message msg, ChatProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              const Text(
+                'Message Options',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const Divider(),
+              ListTile(
+                leading: Icon(msg.isStarred ? Icons.star : Icons.star_border, color: Colors.amber),
+                title: Text(msg.isStarred ? 'Unstar Message' : 'Star Message'),
+                onTap: () {
+                  provider.toggleStarMessage(msg.id);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Delete Message', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  provider.deleteMessage(msg.id);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.select_all),
+                title: const Text('Select Multiple'),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _isSelectionMode = true;
+                    _selectedMessageIds.add(msg.id);
+                  });
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('Cancel'),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _starSelectedMessages(ChatProvider provider) async {
+    for (var id in _selectedMessageIds) {
+      final msg = provider.getMessagesForChat(widget.chatId).firstWhere((m) => m.id == id);
+      if (!msg.isStarred) {
+        await provider.toggleStarMessage(id);
+      }
+    }
+    setState(() {
+      _isSelectionMode = false;
+      _selectedMessageIds.clear();
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selected messages starred'), duration: Duration(seconds: 1)),
+      );
+    }
+  }
+
+  Future<void> _deleteSelectedMessages(ChatProvider provider) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Selected Messages?'),
+        content: Text('Are you sure you want to delete these ${_selectedMessageIds.length} messages permanently?'),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          TextButton(
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      for (var id in _selectedMessageIds) {
+        await provider.deleteMessage(id);
+      }
+      setState(() {
+        _isSelectionMode = false;
+        _selectedMessageIds.clear();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selected messages deleted'), duration: Duration(seconds: 1)),
+        );
+      }
     }
   }
 }
