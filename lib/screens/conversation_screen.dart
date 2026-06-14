@@ -89,7 +89,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   Future<void> _pickFile() async {
     try {
-      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+      final FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'txt'],
       );
