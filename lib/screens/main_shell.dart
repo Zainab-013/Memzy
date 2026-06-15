@@ -21,7 +21,6 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  int _selectedIndex = 0;
   StreamSubscription? _intentSub;
 
   final List<Widget> _screens = const [
@@ -35,6 +34,14 @@ class _MainShellState extends State<MainShell> {
     _initSharingIntent();
     // Request notification permissions once on app startup
     NotificationService.requestPermissions();
+    // Check if app was launched via notification click
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (NotificationService.initialPayload != null) {
+        final payload = NotificationService.initialPayload;
+        NotificationService.initialPayload = null; // Clear it
+        NotificationService.handleNotificationClick(payload);
+      }
+    });
   }
 
   @override
@@ -101,12 +108,14 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
+    final chatProvider = Provider.of<ChatProvider>(context);
+    final selectedIndex = chatProvider.currentTabIndex;
 
     return Scaffold(
       // Extend body so we can see list content behind the transparent blur navigation bar
       extendBody: true,
       body: IndexedStack(
-        index: _selectedIndex,
+        index: selectedIndex,
         children: _screens,
       ),
       floatingActionButton: Padding(
@@ -116,7 +125,7 @@ class _MainShellState extends State<MainShell> {
           foregroundColor: Colors.white,
           shape: const CircleBorder(),
           elevation: 4,
-          onPressed: _selectedIndex == 0
+          onPressed: selectedIndex == 0
               ? () => _showCreateChatDialog(context)
               : () => _showCreateReminderDialog(context),
           child: const Icon(Icons.add, size: 28),
@@ -147,12 +156,16 @@ class _MainShellState extends State<MainShell> {
                     icon: Icons.chat,
                     label: 'Chats',
                     isDark: isDark,
+                    selectedIndex: selectedIndex,
+                    onTap: () => chatProvider.setTabIndex(0),
                   ),
                   _buildNavItem(
                     index: 1,
                     icon: Icons.notifications,
                     label: 'Reminders',
                     isDark: isDark,
+                    selectedIndex: selectedIndex,
+                    onTap: () => chatProvider.setTabIndex(1),
                   ),
                 ],
               ),
@@ -168,18 +181,16 @@ class _MainShellState extends State<MainShell> {
     required IconData icon,
     required String label,
     required bool isDark,
+    required int selectedIndex,
+    required VoidCallback onTap,
   }) {
-    final isSelected = _selectedIndex == index;
+    final isSelected = selectedIndex == index;
     final activeColor = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
     final inactiveColor = isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
+      onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

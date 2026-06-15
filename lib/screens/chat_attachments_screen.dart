@@ -7,6 +7,7 @@ import '../providers/theme_provider.dart';
 import '../models/message.dart';
 import '../theme/stitch_theme.dart';
 import '../widgets/full_screen_image_viewer.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ChatAttachmentsScreen extends StatefulWidget {
   final String chatId;
@@ -31,6 +32,53 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
     r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})',
     caseSensitive: false,
   );
+
+  Future<void> _downloadFile(Message msg) async {
+    if (msg.fileLocalPath == null) return;
+    final sourceFile = File(msg.fileLocalPath!);
+    if (!await sourceFile.exists()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Source file does not exist locally.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      Directory? downloadsDir;
+      if (Platform.isAndroid) {
+        downloadsDir = Directory('/storage/emulated/0/Download');
+        if (!await downloadsDir.exists()) {
+          downloadsDir = await getDownloadsDirectory();
+        }
+      } else {
+        downloadsDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+      }
+
+      if (downloadsDir != null) {
+        final targetPath = '${downloadsDir.path}/${msg.fileName ?? "downloaded_file"}';
+        await sourceFile.copy(targetPath);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Saved to: $targetPath'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        throw Exception("Could not find download directory.");
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error downloading file: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -421,7 +469,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                           if (!_isSelectionMode)
                             IconButton(
                               icon: const Icon(Icons.download, color: StitchTheme.primary),
-                              onPressed: () {},
+                              onPressed: () => _downloadFile(msg),
                             ),
                         ],
                       ),

@@ -1,11 +1,38 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:provider/provider.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import '../providers/chat_provider.dart';
+import '../screens/conversation_screen.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
+
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static String? initialPayload;
+
+  static void handleNotificationClick(String? payload) {
+    if (payload == null || payload.isEmpty) return;
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      if (payload == 'none') {
+        chatProvider.setTabIndex(1);
+        navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      } else {
+        chatProvider.setTabIndex(0);
+        navigatorKey.currentState?.popUntil((route) => route.isFirst);
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (context) => ConversationScreen(chatId: payload),
+          ),
+        );
+      }
+    }
+  }
 
   static Future<void> init() async {
     tz.initializeTimeZones();
@@ -35,9 +62,21 @@ class NotificationService {
     await _notificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle clicking on a notification if needed
+        if (response.payload != null) {
+          handleNotificationClick(response.payload);
+        }
       },
     );
+
+    try {
+      final NotificationAppLaunchDetails? details =
+          await _notificationsPlugin.getNotificationAppLaunchDetails();
+      if (details?.didNotificationLaunchApp ?? false) {
+        initialPayload = details?.notificationResponse?.payload;
+      }
+    } catch (e) {
+      debugPrint("Error reading notification app launch details: $e");
+    }
   }
 
   static Future<void> requestPermissions() async {

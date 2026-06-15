@@ -36,6 +36,7 @@ class MyApp extends StatelessWidget {
         builder: (context, themeProvider, child) {
           return MaterialApp(
             title: 'Memzy',
+            navigatorKey: NotificationService.navigatorKey,
             debugShowCheckedModeBanner: false,
             theme: StitchTheme.lightTheme,
             darkTheme: StitchTheme.darkTheme,

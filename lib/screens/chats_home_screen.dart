@@ -7,6 +7,7 @@ import '../models/chat.dart';
 import '../theme/stitch_theme.dart';
 import 'conversation_screen.dart';
 import 'archived_chats_screen.dart';
+import 'memory_insights_screen.dart';
 
 class ChatsHomeScreen extends StatefulWidget {
   const ChatsHomeScreen({super.key});
@@ -267,11 +268,10 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                               ),
                             ),
                             onPressed: () {
-                              // Action hook (visual notification feedback)
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Insights analyzer coming soon!'),
-                                  duration: Duration(seconds: 1),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MemoryInsightsScreen(),
                                 ),
                               );
                             },

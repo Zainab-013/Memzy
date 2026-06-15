@@ -14,10 +14,10 @@ class Reminder extends HiveObject {
   final String messageId;
 
   @HiveField(3)
-  final String content;
+  String content;
 
   @HiveField(4)
-  final DateTime time;
+  DateTime time;
 
   @HiveField(5)
   bool isCompleted;

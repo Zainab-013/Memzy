@@ -2,11 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/message.dart';
 import '../models/reminder.dart';
 import '../theme/stitch_theme.dart';
+import '../widgets/full_screen_image_viewer.dart';
 import 'chat_attachments_screen.dart';
 
 class ChatInfoScreen extends StatefulWidget {
@@ -24,6 +26,16 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     caseSensitive: false,
   );
 
+  bool _isSearching = false;
+  String _searchQuery = "";
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
@@ -34,12 +46,19 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     final messages = chatProvider.getMessagesForChat(widget.chatId);
     final chatReminders = chatProvider.reminders
         .where((r) => r.chatId == widget.chatId && !r.isCompleted)
+        .where((r) {
+          if (_searchQuery.isEmpty) return true;
+          return r.content.toLowerCase().contains(_searchQuery.toLowerCase());
+        })
         .toList();
 
     // Group media files
     final mediaMessages = messages.where((m) => m.type == 'image').toList();
     final documentMessages = messages.where((m) => m.type == 'pdf' || m.type == 'document').toList();
-    final allAttachments = [...mediaMessages, ...documentMessages];
+    final allAttachments = [...mediaMessages, ...documentMessages].where((m) {
+      if (_searchQuery.isEmpty) return true;
+      return (m.fileName ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
 
     // Extract links from text messages
     final List<Map<String, String>> savedLinks = [];
@@ -53,7 +72,11 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           if (title.isEmpty) {
             title = "Shared Link";
           }
-          savedLinks.add({'title': title, 'url': url});
+          if (_searchQuery.isEmpty || 
+              title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+              url.toLowerCase().contains(_searchQuery.toLowerCase())) {
+            savedLinks.add({'title': title, 'url': url});
+          }
         }
       }
     }
@@ -64,15 +87,107 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Chat Info'),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Search chat info...',
+                  border: InputBorder.none,
+                ),
+                style: TextStyle(
+                  color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              )
+            : const Text('Chat Info'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {},
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                if (_isSearching) {
+                  _isSearching = false;
+                  _searchQuery = "";
+                  _searchController.clear();
+                } else {
+                  _isSearching = true;
+                }
+              });
+            },
           ),
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
-            onPressed: () {},
+            onSelected: (value) async {
+              if (value == 'clear') {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Clear Chat Logs?'),
+                    content: const Text(
+                        'Are you sure you want to delete all messages and reminders inside this chat?'),
+                    actions: [
+                      TextButton(
+                        child: const Text('Cancel'),
+                        onPressed: () => Navigator.pop(context, false),
+                      ),
+                      TextButton(
+                        child: const Text('Clear', style: TextStyle(color: Colors.red)),
+                        onPressed: () => Navigator.pop(context, true),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await chatProvider.clearChatLogs(widget.chatId);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Chat logs cleared'), duration: Duration(seconds: 1)),
+                    );
+                  }
+                }
+              } else if (value == 'delete') {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Memory Thread?'),
+                    content: const Text(
+                        'This will permanently delete this chat thread and all its reminders.'),
+                    actions: [
+                      TextButton(
+                        child: const Text('Cancel'),
+                        onPressed: () => Navigator.pop(context, false),
+                      ),
+                      TextButton(
+                        child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                        onPressed: () => Navigator.pop(context, true),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await chatProvider.deleteChat(widget.chatId);
+                  if (context.mounted) {
+                    Navigator.pop(context); // pop ChatInfoScreen
+                    Navigator.pop(context); // pop ConversationScreen (back to home)
+                  }
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'clear',
+                child: Text('Clear Chat Logs', style: TextStyle(color: Colors.red)),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete Chat Thread', style: TextStyle(color: Colors.red)),
+              ),
+            ],
           ),
         ],
       ),
@@ -391,29 +506,55 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isDark ? StitchTheme.darkSurfaceContainerLow : StitchTheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(12),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatAttachmentsScreen(
+                                  chatId: widget.chatId,
+                                  initialTabIndex: 1,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? StitchTheme.darkSurfaceContainerLow : StitchTheme.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.insert_drive_file, color: StitchTheme.primary),
                           ),
-                          child: const Icon(Icons.insert_drive_file, color: StitchTheme.primary),
                         ),
                       ),
                       const SizedBox(width: 8),
                       // More Indicator card
                       Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: StitchTheme.primary,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '+$totalCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatAttachmentsScreen(
+                                  chatId: widget.chatId,
+                                  initialTabIndex: 0,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: StitchTheme.primary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '+$totalCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                         ),
@@ -432,80 +573,126 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
   Widget _buildBentoItem(Message msg, bool isDark) {
     final isImg = msg.type == 'image';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? StitchTheme.darkSurfaceContainerLow : StitchTheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: isImg && msg.fileLocalPath != null
-          ? Image.file(
-              File(msg.fileLocalPath!),
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            )
-          : Center(
-              child: Icon(
-                msg.type == 'pdf' ? Icons.picture_as_pdf : Icons.insert_drive_file,
-                color: msg.type == 'pdf' ? Colors.red : StitchTheme.primary,
-                size: 32,
+    return GestureDetector(
+      onTap: () {
+        if (isImg) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FullScreenImageViewer(
+                imagePath: msg.fileLocalPath,
+                fileName: msg.fileName ?? "image.jpg",
+                heroTag: "bento_${msg.fileLocalPath ?? msg.id}",
               ),
             ),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatAttachmentsScreen(
+                chatId: widget.chatId,
+                initialTabIndex: 1,
+              ),
+            ),
+          );
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? StitchTheme.darkSurfaceContainerLow : StitchTheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: isImg && msg.fileLocalPath != null
+            ? Hero(
+                tag: "bento_${msg.fileLocalPath ?? msg.id}",
+                child: Image.file(
+                  File(msg.fileLocalPath!),
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
+              )
+            : Center(
+                child: Icon(
+                  msg.type == 'pdf' ? Icons.picture_as_pdf : Icons.insert_drive_file,
+                  color: msg.type == 'pdf' ? Colors.red : StitchTheme.primary,
+                  size: 32,
+                ),
+              ),
+      ),
     );
   }
 
   Widget _buildLinkCard(String title, String url, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.tryParse(url);
+        if (uri != null) {
+          try {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Could not launch link: $url')),
+              );
+            }
+          }
+        }
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: StitchTheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: StitchTheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.link, color: StitchTheme.primary),
             ),
-            child: const Icon(Icons.link, color: StitchTheme.primary),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  url,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: StitchTheme.outline,
+                  const SizedBox(height: 2),
+                  Text(
+                    url,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: StitchTheme.outline,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right, color: StitchTheme.outline),
-        ],
+            const Icon(Icons.chevron_right, color: StitchTheme.outline),
+          ],
+        ),
       ),
     );
   }
@@ -563,8 +750,188 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               ],
             ),
           ),
+          IconButton(
+            icon: const Icon(Icons.edit, size: 18, color: StitchTheme.primary),
+            onPressed: () => _showEditReminderDialog(context, reminder, isDark),
+          ),
         ],
       ),
+    );
+  }
+
+  void _showEditReminderDialog(BuildContext context, Reminder reminder, bool isDark) {
+    final provider = Provider.of<ChatProvider>(context, listen: false);
+    final titleController = TextEditingController(text: reminder.content);
+    DateTime selectedDateTime = reminder.time;
+    int selectedOption = 5;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
+              title: const Text('Edit Reminder'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Reminder details'),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Schedule:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildTimeChip(
+                        label: 'In 1 Hr',
+                        isSelected: selectedOption == 1,
+                        onTap: () {
+                          setModalState(() {
+                            selectedOption = 1;
+                            selectedDateTime = DateTime.now().add(const Duration(hours: 1));
+                          });
+                        },
+                        isDark: isDark,
+                      ),
+                      _buildTimeChip(
+                        label: 'In 3 Hrs',
+                        isSelected: selectedOption == 2,
+                        onTap: () {
+                          setModalState(() {
+                            selectedOption = 2;
+                            selectedDateTime = DateTime.now().add(const Duration(hours: 3));
+                          });
+                        },
+                        isDark: isDark,
+                      ),
+                      _buildTimeChip(
+                        label: 'Tomorrow 8 AM',
+                        isSelected: selectedOption == 3,
+                        onTap: () {
+                          setModalState(() {
+                            selectedOption = 3;
+                            final tomorrow = DateTime.now().add(const Duration(days: 1));
+                            selectedDateTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8, 0);
+                          });
+                        },
+                        isDark: isDark,
+                      ),
+                      _buildTimeChip(
+                        label: 'Tomorrow 10 PM',
+                        isSelected: selectedOption == 4,
+                        onTap: () {
+                          setModalState(() {
+                            selectedOption = 4;
+                            final tomorrow = DateTime.now().add(const Duration(days: 1));
+                            selectedDateTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 22, 0);
+                          });
+                        },
+                        isDark: isDark,
+                      ),
+                      _buildTimeChip(
+                        label: 'Custom...',
+                        isSelected: selectedOption == 5,
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDateTime,
+                            firstDate: DateTime.now().isBefore(selectedDateTime) ? DateTime.now() : selectedDateTime,
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (date != null && context.mounted) {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(selectedDateTime),
+                            );
+                            if (time != null) {
+                              setModalState(() {
+                                selectedOption = 5;
+                                selectedDateTime = DateTime(
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  time.hour,
+                                  time.minute,
+                                );
+                              });
+                            }
+                          }
+                        },
+                        isDark: isDark,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.access_time_filled,
+                          size: 16,
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Will remind on: ${DateFormat('MMM d, yyyy - h:mm a').format(selectedDateTime)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final text = titleController.text.trim();
+                    if (text.isNotEmpty) {
+                      await provider.updateReminder(
+                        reminderId: reminder.id,
+                        content: text,
+                        time: selectedDateTime,
+                      );
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Reminder updated successfully')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

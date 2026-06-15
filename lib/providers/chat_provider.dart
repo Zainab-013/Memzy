@@ -15,13 +15,28 @@ class ChatProvider extends ChangeNotifier {
   List<Message> _messages = [];
   List<Reminder> _reminders = [];
 
+  int _currentTabIndex = 0;
+  int get currentTabIndex => _currentTabIndex;
+
+  void setTabIndex(int index) {
+    _currentTabIndex = index;
+    notifyListeners();
+  }
+
   List<Chat> get chats {
-    // Pinned chats first, then sorted by creation time descending (or last message time)
+    // Pinned chats first, then sorted by last message time (or creation time if no messages)
     final list = List<Chat>.from(_chats);
     list.sort((a, b) {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      return b.createdAt.compareTo(a.createdAt);
+      
+      final aMsgs = getMessagesForChat(a.id);
+      final bMsgs = getMessagesForChat(b.id);
+      
+      final aTime = aMsgs.isNotEmpty ? aMsgs.last.timestamp : a.createdAt;
+      final bTime = bMsgs.isNotEmpty ? bMsgs.last.timestamp : b.createdAt;
+      
+      return bTime.compareTo(aTime);
     });
     return list;
   }
@@ -152,10 +167,42 @@ class ChatProvider extends ChangeNotifier {
       title: "Memzy Reminder",
       body: content,
       scheduledTime: time,
+      payload: chatId,
     );
 
     notifyListeners();
     return reminder;
+  }
+
+  // Update an existing reminder (content and time)
+  Future<void> updateReminder({
+    required String reminderId,
+    required String content,
+    required DateTime time,
+  }) async {
+    final reminderIndex = _reminders.indexWhere((r) => r.id == reminderId);
+    if (reminderIndex != -1) {
+      final r = _reminders[reminderIndex];
+      // 1. Cancel previous notification
+      await NotificationService.cancelNotification(r.id.hashCode);
+
+      // 2. Mutate reminder fields and save
+      r.content = content;
+      r.time = time;
+      await r.save();
+
+      // 3. Re-schedule notification if not completed and is in the future
+      if (!r.isCompleted && time.isAfter(DateTime.now())) {
+        await NotificationService.scheduleNotification(
+          id: r.id.hashCode,
+          title: "Memzy Reminder",
+          body: content,
+          scheduledTime: time,
+          payload: r.chatId,
+        );
+      }
+      notifyListeners();
+    }
   }
 
   // Send message
