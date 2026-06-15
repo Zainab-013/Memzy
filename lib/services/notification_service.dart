@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -16,10 +17,18 @@ class NotificationService {
 
   static void handleNotificationClick(String? payload) {
     if (payload == null || payload.isEmpty) return;
+    
+    // Payload can be "reminderId|chatId" or just "chatId"
+    String targetChatId = payload;
+    if (payload.contains('|')) {
+      final parts = payload.split('|');
+      targetChatId = parts.length > 1 ? parts[1] : parts[0];
+    }
+
     final context = navigatorKey.currentContext;
     if (context != null) {
       final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-      if (payload == 'none') {
+      if (targetChatId == 'none') {
         chatProvider.setTabIndex(1);
         navigatorKey.currentState?.popUntil((route) => route.isFirst);
       } else {
@@ -27,9 +36,22 @@ class NotificationService {
         navigatorKey.currentState?.popUntil((route) => route.isFirst);
         navigatorKey.currentState?.push(
           MaterialPageRoute(
-            builder: (context) => ConversationScreen(chatId: payload),
+            builder: (context) => ConversationScreen(chatId: targetChatId),
           ),
         );
+      }
+    }
+  }
+
+  static void _handleStopAlarmAction(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload != null && payload.contains('|')) {
+      final parts = payload.split('|');
+      final reminderId = parts[0];
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+        chatProvider.toggleReminderCompletion(reminderId);
       }
     }
   }
@@ -37,11 +59,18 @@ class NotificationService {
   static Future<void> init() async {
     tz.initializeTimeZones();
     
-    // Set local location to Asia/Kolkata as default for this environment, fallback if error
+    // Set local location dynamically from device timezone, fallback if error
     try {
-      tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
-    } catch (_) {
-      // Fallback
+      final String timeZoneName = DateTime.now().timeZoneName;
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      debugPrint("Local timezone successfully set to: $timeZoneName");
+    } catch (e) {
+      debugPrint("Failed to set timezone from timeZoneName ($e). Falling back to Asia/Kolkata.");
+      try {
+        tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
+      } catch (_) {
+        tz.setLocalLocation(tz.UTC);
+      }
     }
 
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -62,7 +91,10 @@ class NotificationService {
     await _notificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (response.payload != null) {
+        if (response.notificationResponseType == NotificationResponseType.selectedNotificationAction &&
+            response.actionId == 'stop_alarm') {
+          _handleStopAlarmAction(response);
+        } else if (response.payload != null) {
           handleNotificationClick(response.payload);
         }
       },
@@ -124,6 +156,7 @@ class NotificationService {
     required String body,
     required DateTime scheduledTime,
     String? payload,
+    bool isAlarm = true,
   }) async {
     if (scheduledTime.isBefore(DateTime.now())) {
       debugPrint("Notification ignored: Scheduled time ($scheduledTime) is in the past compared to current time (${DateTime.now()})");
@@ -135,22 +168,40 @@ class NotificationService {
       tz.UTC,
     );
 
-    debugPrint("Scheduling notification: ID: $id, Title: '$title', Time: $tzScheduledTime (UTC), Milliseconds: ${tzScheduledTime.millisecondsSinceEpoch}");
+    debugPrint("Scheduling notification: ID: $id, Title: '$title', Time: $tzScheduledTime (UTC), Milliseconds: ${tzScheduledTime.millisecondsSinceEpoch}, isAlarm: $isAlarm");
 
-    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'memzy_alarm_reminders_channel_v1',
-      'Memzy Alarm Reminders',
-      channelDescription: 'Channel for high priority, alarm-like reminders',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      vibrationPattern: Int64List.fromList(<int>[0, 1000, 500, 1000, 500, 1000, 500, 1000]),
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-      additionalFlags: Int32List.fromList(<int>[4]), // FLAG_INSISTENT loops sound and vibration until dismissed
-    );
+    final AndroidNotificationDetails androidDetails = isAlarm
+        ? AndroidNotificationDetails(
+            'memzy_alarm_reminders_channel_v6',
+            'Memzy Alarm Reminders',
+            channelDescription: 'Channel for high priority, alarm-like reminders',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+            enableVibration: true,
+            vibrationPattern: Int64List.fromList(<int>[0, 1000, 500, 1000, 500, 1000, 500, 1000]),
+            audioAttributesUsage: AudioAttributesUsage.alarm,
+            additionalFlags: Int32List.fromList(<int>[4]), // FLAG_INSISTENT loops sound and vibration until dismissed
+            actions: <AndroidNotificationAction>[
+              const AndroidNotificationAction(
+                'stop_alarm',
+                'Stop',
+                cancelNotification: true,
+                showsUserInterface: false,
+              ),
+            ],
+          )
+        : const AndroidNotificationDetails(
+            'memzy_normal_reminders_channel_v6',
+            'Memzy Standard Reminders',
+            channelDescription: 'Channel for standard reminder warnings',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            playSound: true,
+            enableVibration: true,
+          );
 
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+    final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
@@ -173,7 +224,7 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: payload,
       );
-      debugPrint("Notification scheduled successfully via exact alarm!");
+      debugPrint("Notification scheduled successfully!");
     } catch (e) {
       debugPrint("SecurityException or error scheduling exact alarm: $e. Falling back to inexact alarm.");
       try {
@@ -188,14 +239,15 @@ class NotificationService {
               UILocalNotificationDateInterpretation.absoluteTime,
           payload: payload,
         );
-        debugPrint("Notification scheduled successfully via inexact alarm fallback!");
+        debugPrint("Notification scheduled successfully via inexact fallback!");
       } catch (e2) {
-        debugPrint("Failed to schedule fallback alarm: $e2");
+        debugPrint("Failed to schedule fallback: $e2");
       }
     }
   }
 
   static Future<void> cancelNotification(int id) async {
     await _notificationsPlugin.cancel(id);
+    await _notificationsPlugin.cancel(id + 1);
   }
 }

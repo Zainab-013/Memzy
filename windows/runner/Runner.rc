@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.stitch.memzy" "\0"
-            VALUE "FileDescription", "memzy" "\0"
+            VALUE "FileDescription", "Memzy" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "memzy" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.stitch.memzy. All rights reserved." "\0"
             VALUE "OriginalFilename", "memzy.exe" "\0"
-            VALUE "ProductName", "memzy" "\0"
+            VALUE "ProductName", "Memzy" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

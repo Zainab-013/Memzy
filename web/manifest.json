@@ -1,6 +1,6 @@
 {
-    "name": "memzy",
-    "short_name": "memzy",
+    "name": "Memzy",
+    "short_name": "Memzy",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

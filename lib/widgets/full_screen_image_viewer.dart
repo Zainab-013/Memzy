@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 class FullScreenImageViewer extends StatelessWidget {
   final String? imagePath;
@@ -82,6 +83,17 @@ class FullScreenImageViewer extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (imagePath != null)
+                        IconButton(
+                          icon: const Icon(Icons.share, color: Colors.white),
+                          onPressed: () async {
+                            try {
+                              await Share.shareXFiles([XFile(imagePath!)]);
+                            } catch (e) {
+                              debugPrint("Error sharing image: $e");
+                            }
+                          },
+                        ),
                     ],
                   ),
                 ),

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:open_filex/open_filex.dart';
 import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/message.dart';
@@ -251,6 +253,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
               title: Text('${_selectedMessageIds.length} Selected'),
               actions: [
                 IconButton(
+                  icon: const Icon(Icons.share),
+                  onPressed: () => _shareSelectedMessages(chatProvider),
+                ),
+                IconButton(
                   icon: Icon(allStarred ? Icons.star_border : Icons.star, color: Colors.amber),
                   onPressed: () => _starSelectedMessages(chatProvider),
                 ),
@@ -321,25 +327,13 @@ class _ConversationScreenState extends State<ConversationScreen> {
                         const SizedBox(width: 12),
                         // Header titles
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                chat.title,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const Text(
-                                'Digital Brain Active',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: StitchTheme.outline,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            chat.title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -588,6 +582,17 @@ class _ConversationScreenState extends State<ConversationScreen> {
                         ),
                       ),
                     );
+                  } else if ((msg.type == 'pdf' || msg.type == 'document') && msg.fileLocalPath != null) {
+                    try {
+                      await OpenFilex.open(msg.fileLocalPath);
+                    } catch (e) {
+                      debugPrint("Error opening file: $e");
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Could not open this file type")),
+                        );
+                      }
+                    }
                   }
                 },
                 onLongPress: () {
@@ -780,6 +785,53 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
+
+  Future<void> _shareSelectedMessages(ChatProvider provider) async {
+    final messages = provider.getMessagesForChat(widget.chatId);
+    final selectedMsgs = messages.where((m) => _selectedMessageIds.contains(m.id)).toList();
+    if (selectedMsgs.isEmpty) return;
+
+    setState(() {
+      _isSelectionMode = false;
+      _selectedMessageIds.clear();
+    });
+
+    try {
+      if (selectedMsgs.length == 1) {
+        final msg = selectedMsgs.first;
+        if (msg.fileLocalPath != null) {
+          final file = File(msg.fileLocalPath!);
+          if (await file.exists()) {
+            await Share.shareXFiles(
+              [XFile(msg.fileLocalPath!)],
+              text: msg.text != "Sent a document" && msg.text != "Sent an image" ? msg.text : null,
+            );
+            return;
+          }
+        }
+        await Share.share(msg.text);
+      } else {
+        final buffer = StringBuffer();
+        for (var msg in selectedMsgs) {
+          final sender = msg.sender == 'user' ? 'Me' : 'Memzy';
+          final time = DateFormat('h:mm a').format(msg.timestamp);
+          buffer.writeln('[$time] $sender: ${msg.text}');
+          if (msg.fileName != null) {
+            buffer.writeln('Attachment: ${msg.fileName}');
+          }
+          buffer.writeln();
+        }
+        await Share.share(buffer.toString().trim());
+      }
+    } catch (e) {
+      debugPrint("Error sharing messages: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Sharing failed")),
+        );
+      }
+    }
+  }
 
   Future<void> _starSelectedMessages(ChatProvider provider) async {
     final messages = provider.getMessagesForChat(widget.chatId);

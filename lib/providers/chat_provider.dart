@@ -72,10 +72,25 @@ class ChatProvider extends ChangeNotifier {
     _loadFromDatabase();
   }
 
-  void _loadFromDatabase() {
+  Future<void> _loadFromDatabase() async {
     _chats = DatabaseService.chatsBox.values.toList();
     _messages = DatabaseService.messagesBox.values.toList();
     _reminders = DatabaseService.remindersBox.values.toList();
+    
+    if (_chats.isEmpty) {
+      await _createDefaultChats();
+    } else {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _createDefaultChats() async {
+    final c1 = await createChat("Placement Prep", iconCode: Icons.work.codePoint);
+    final c2 = await createChat("College Notes", iconCode: Icons.description.codePoint);
+    final c3 = await createChat("Shopping", iconCode: Icons.shopping_cart.codePoint);
+    
+    // We already do notifyListeners inside createChat, but let's make sure the state is clean
+    _chats = [c1, c2, c3];
     notifyListeners();
   }
 
@@ -160,14 +175,27 @@ class ChatProvider extends ChangeNotifier {
     await DatabaseService.remindersBox.put(reminder.id, reminder);
     _reminders.add(reminder);
 
-    // Schedule Notification (Hash code of UUID for unique int id)
+    // Schedule Alarm (exact time) and Warning (10 minutes before)
     final notificationId = reminderId.hashCode;
+    final warningTime = time.subtract(const Duration(minutes: 10));
+    final payloadString = "$reminderId|$chatId";
+
     await NotificationService.scheduleNotification(
       id: notificationId,
-      title: "Memzy Reminder",
+      title: "Memzy Alarm",
       body: content,
       scheduledTime: time,
-      payload: chatId,
+      payload: payloadString,
+      isAlarm: true,
+    );
+
+    await NotificationService.scheduleNotification(
+      id: notificationId + 1,
+      title: "Upcoming Reminder (in 10m)",
+      body: content,
+      scheduledTime: warningTime,
+      payload: payloadString,
+      isAlarm: false,
     );
 
     notifyListeners();
@@ -183,7 +211,7 @@ class ChatProvider extends ChangeNotifier {
     final reminderIndex = _reminders.indexWhere((r) => r.id == reminderId);
     if (reminderIndex != -1) {
       final r = _reminders[reminderIndex];
-      // 1. Cancel previous notification
+      // 1. Cancel previous notification (both alarm and warning)
       await NotificationService.cancelNotification(r.id.hashCode);
 
       // 2. Mutate reminder fields and save
@@ -191,14 +219,28 @@ class ChatProvider extends ChangeNotifier {
       r.time = time;
       await r.save();
 
-      // 3. Re-schedule notification if not completed and is in the future
-      if (!r.isCompleted && time.isAfter(DateTime.now())) {
+      // 3. Re-schedule notifications if not completed
+      if (!r.isCompleted) {
+        final notificationId = r.id.hashCode;
+        final warningTime = time.subtract(const Duration(minutes: 10));
+        final payloadString = "${r.id}|${r.chatId}";
+
         await NotificationService.scheduleNotification(
-          id: r.id.hashCode,
-          title: "Memzy Reminder",
+          id: notificationId,
+          title: "Memzy Alarm",
           body: content,
           scheduledTime: time,
-          payload: r.chatId,
+          payload: payloadString,
+          isAlarm: true,
+        );
+
+        await NotificationService.scheduleNotification(
+          id: notificationId + 1,
+          title: "Upcoming Reminder (in 10m)",
+          body: content,
+          scheduledTime: warningTime,
+          payload: payloadString,
+          isAlarm: false,
         );
       }
       notifyListeners();
@@ -231,6 +273,8 @@ class ChatProvider extends ChangeNotifier {
     _messages.add(userMsg);
     notifyListeners();
 
+    bool reminderCreated = false;
+
     // Check if the message contains a reminder
     if (type == 'text') {
       final parseResult = ReminderParser.parse(text);
@@ -255,8 +299,25 @@ class ChatProvider extends ChangeNotifier {
 
         await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
         _messages.add(systemMsg);
+        reminderCreated = true;
         notifyListeners();
       }
+    }
+
+    if (!reminderCreated) {
+      // Auto-reply for any other message
+      final systemMsg = Message(
+        id: _uuid.v4(),
+        chatId: chatId,
+        text: "✓ Noted.",
+        sender: 'system',
+        timestamp: DateTime.now().add(const Duration(milliseconds: 100)),
+        type: 'text',
+      );
+
+      await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
+      _messages.add(systemMsg);
+      notifyListeners();
     }
   }
 
@@ -277,15 +338,28 @@ class ChatProvider extends ChangeNotifier {
     if (reminder.isCompleted) {
       await NotificationService.cancelNotification(reminder.id.hashCode);
     } else {
-      // Re-schedule reminder if it's in the future
-      if (reminder.time.isAfter(DateTime.now())) {
-        await NotificationService.scheduleNotification(
-          id: reminder.id.hashCode,
-          title: "Memzy Reminder",
-          body: reminder.content,
-          scheduledTime: reminder.time,
-        );
-      }
+      // Re-schedule notifications
+      final notificationId = reminder.id.hashCode;
+      final warningTime = reminder.time.subtract(const Duration(minutes: 10));
+      final payloadString = "${reminder.id}|${reminder.chatId}";
+
+      await NotificationService.scheduleNotification(
+        id: notificationId,
+        title: "Memzy Alarm",
+        body: reminder.content,
+        scheduledTime: reminder.time,
+        payload: payloadString,
+        isAlarm: true,
+      );
+
+      await NotificationService.scheduleNotification(
+        id: notificationId + 1,
+        title: "Upcoming Reminder (in 10m)",
+        body: reminder.content,
+        scheduledTime: warningTime,
+        payload: payloadString,
+        isAlarm: false,
+      );
     }
     notifyListeners();
   }
@@ -303,6 +377,14 @@ class ChatProvider extends ChangeNotifier {
       await DatabaseService.remindersBox.delete(r.id);
       _reminders.remove(r);
     }
+    notifyListeners();
+  }
+
+  // Delete reminder directly by reminder ID
+  Future<void> deleteReminder(String reminderId) async {
+    await NotificationService.cancelNotification(reminderId.hashCode);
+    await DatabaseService.remindersBox.delete(reminderId);
+    _reminders.removeWhere((r) => r.id == reminderId);
     notifyListeners();
   }
 
@@ -355,79 +437,5 @@ class ChatProvider extends ChangeNotifier {
     } else {
       return "${DateFormat('d MMMM').format(dateTime)} at ${DateFormat('h:mm a').format(dateTime)}";
     }
-  }
-
-  // Seed default data for prototype demonstration on first launch
-  Future<void> seedDemoData() async {
-    if (_chats.isNotEmpty) return; // Only seed if empty
-    final now = DateTime.now();
-
-    final c1 = await createChat("Placement Prep", iconCode: Icons.work.codePoint);
-    final c2 = await createChat("College Notes", iconCode: Icons.description.codePoint);
-    final c3 = await createChat("Shopping", iconCode: Icons.shopping_cart.codePoint);
-
-    // Seeding messages for Placement Prep
-    await sendMessage(chatId: c1.id, text: "Apply for internship. Remind me at 10:00 PM.");
-    // This triggers the automatic system reply and scheduled reminder inside sendMessage
-
-    // Seeding College Notes files
-    final time2 = DateTime.now().subtract(const Duration(hours: 3));
-    final userMsg2 = Message(
-      id: _uuid.v4(),
-      chatId: c2.id,
-      text: "Saved Lecture 3 PDF",
-      sender: 'user',
-      timestamp: time2,
-      type: 'pdf',
-      fileName: 'Lecture_3.pdf',
-      fileSize: 1258291, // 1.2 MB
-    );
-    await DatabaseService.messagesBox.put(userMsg2.id, userMsg2);
-    _messages.add(userMsg2);
-
-    // Seeding Shopping list
-    final time3 = DateTime.now().subtract(const Duration(days: 1));
-    final userMsg3 = Message(
-      id: _uuid.v4(),
-      chatId: c3.id,
-      text: "Groceries list",
-      sender: 'user',
-      timestamp: time3,
-      type: 'text',
-    );
-    await DatabaseService.messagesBox.put(userMsg3.id, userMsg3);
-    _messages.add(userMsg3);
-
-    // Add some completed/upcoming reminders manually to match prototypes
-    final tomorrow9AM = DateTime(now.year, now.month, now.day).add(const Duration(days: 1, hours: 9));
-    final rUpcoming = Reminder(
-      id: _uuid.v4(),
-      chatId: c3.id,
-      messageId: userMsg3.id,
-      content: "Buy groceries",
-      time: tomorrow9AM,
-      isCompleted: false,
-      createdAt: time3,
-    );
-    await DatabaseService.remindersBox.put(rUpcoming.id, rUpcoming);
-    _reminders.add(rUpcoming);
-
-    final rCompleted = Reminder(
-      id: _uuid.v4(),
-      chatId: c2.id,
-      messageId: userMsg2.id,
-      content: "Review Lecture 3",
-      time: DateTime.now().subtract(const Duration(hours: 1)),
-      isCompleted: true,
-      createdAt: time2,
-    );
-    await DatabaseService.remindersBox.put(rCompleted.id, rCompleted);
-    _reminders.add(rCompleted);
-
-    // Pin College Notes to match UI screenshots
-    c2.isPinned = true;
-    await c2.save();
-
-    _loadFromDatabase();
   }
 }

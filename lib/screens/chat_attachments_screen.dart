@@ -8,6 +8,8 @@ import '../models/message.dart';
 import '../theme/stitch_theme.dart';
 import '../widgets/full_screen_image_viewer.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:open_filex/open_filex.dart';
 
 class ChatAttachmentsScreen extends StatefulWidget {
   final String chatId;
@@ -152,6 +154,10 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
         actions: _isSelectionMode
             ? [
                 IconButton(
+                  icon: const Icon(Icons.share),
+                  onPressed: () => _shareSelectedItems(chatProvider),
+                ),
+                IconButton(
                   icon: Icon(allStarred ? Icons.star_border : Icons.star, color: Colors.amber),
                   onPressed: () => _starSelectedItems(chatProvider),
                 ),
@@ -217,6 +223,71 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
     );
   }
 
+
+  Future<void> _shareSelectedItems(ChatProvider provider) async {
+    final messages = provider.getMessagesForChat(widget.chatId);
+    final selectedMsgs = messages.where((m) => _selectedItemIds.contains(m.id)).toList();
+    if (selectedMsgs.isEmpty) return;
+
+    setState(() {
+      _isSelectionMode = false;
+      _selectedItemIds.clear();
+    });
+
+    try {
+      if (selectedMsgs.length == 1) {
+        final msg = selectedMsgs.first;
+        if (msg.fileLocalPath != null) {
+          final file = File(msg.fileLocalPath!);
+          if (await file.exists()) {
+            await Share.shareXFiles(
+              [XFile(msg.fileLocalPath!)],
+              text: msg.text != "Sent a document" && msg.text != "Sent an image" ? msg.text : null,
+            );
+            return;
+          }
+        }
+        await Share.share(msg.text);
+      } else {
+        final filePaths = selectedMsgs
+            .where((m) => m.fileLocalPath != null)
+            .map((m) => m.fileLocalPath!)
+            .toList();
+
+        if (filePaths.isNotEmpty) {
+          final xFiles = <XFile>[];
+          for (var path in filePaths) {
+            if (await File(path).exists()) {
+              xFiles.add(XFile(path));
+            }
+          }
+          if (xFiles.isNotEmpty) {
+            await Share.shareXFiles(xFiles);
+            return;
+          }
+        }
+
+        final buffer = StringBuffer();
+        for (var msg in selectedMsgs) {
+          final sender = msg.sender == 'user' ? 'Me' : 'Memzy';
+          final time = DateFormat('h:mm a').format(msg.timestamp);
+          buffer.writeln('[$time] $sender: ${msg.text}');
+          if (msg.fileName != null) {
+            buffer.writeln('Attachment: ${msg.fileName}');
+          }
+          buffer.writeln();
+        }
+        await Share.share(buffer.toString().trim());
+      }
+    } catch (e) {
+      debugPrint("Error sharing items: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Sharing failed")),
+        );
+      }
+    }
+  }
 
   Future<void> _starSelectedItems(ChatProvider provider) async {
     final messages = provider.getMessagesForChat(widget.chatId);
@@ -385,7 +456,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
             final isPdf = msg.type == 'pdf';
             final isSelected = _selectedItemIds.contains(msg.id);
             return GestureDetector(
-              onTap: () {
+              onTap: () async {
                 if (_isSelectionMode) {
                   setState(() {
                     if (isSelected) {
@@ -394,6 +465,17 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                       _selectedItemIds.add(msg.id);
                     }
                   });
+                } else if (msg.fileLocalPath != null) {
+                  try {
+                    await OpenFilex.open(msg.fileLocalPath);
+                  } catch (e) {
+                    debugPrint("Error opening document: $e");
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Could not open this file type")),
+                      );
+                    }
+                  }
                 }
               },
               onLongPress: () {

@@ -348,8 +348,301 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
               ],
             ),
           ),
+          
+          // Trailing Options Menu (Edit / Delete)
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.more_vert,
+              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+              size: 20,
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onSelected: (value) {
+              if (value == 'edit') {
+                _showEditReminderDialog(context, reminder, provider, isDark);
+              } else if (value == 'delete') {
+                _confirmDeleteReminder(context, reminder, provider);
+              }
+            },
+            itemBuilder: (context) => [
+              if (!isDone)
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, size: 18),
+                      SizedBox(width: 8),
+                      Text('Edit'),
+                    ],
+                  ),
+                ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 18, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+
+  void _confirmDeleteReminder(BuildContext context, Reminder reminder, ChatProvider provider) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Delete Reminder?"),
+          content: const Text("Are you sure you want to delete this reminder permanently?"),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text("Delete", style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                await provider.deleteReminder(reminder.id);
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditReminderDialog(
+      BuildContext context, Reminder reminder, ChatProvider provider, bool isDark) {
+    final contentController = TextEditingController(text: reminder.content);
+    DateTime selectedDateTime = reminder.time;
+    int selectedOption = 5; // Custom option initially
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final highlightColor = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
+            return AlertDialog(
+              backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Text(
+                'Edit Reminder Task',
+                style: TextStyle(
+                  color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: contentController,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: 'What to remember?',
+                        labelStyle: TextStyle(
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: highlightColor),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      style: TextStyle(
+                        color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Schedule Time:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildTimeChip(
+                          label: 'In 1 Min',
+                          isSelected: selectedOption == 0,
+                          onTap: () {
+                            setModalState(() {
+                              selectedOption = 0;
+                              selectedDateTime = DateTime.now().add(const Duration(minutes: 1));
+                            });
+                          },
+                          isDark: isDark,
+                        ),
+                        _buildTimeChip(
+                          label: 'In 1 Hr',
+                          isSelected: selectedOption == 1,
+                          onTap: () {
+                            setModalState(() {
+                              selectedOption = 1;
+                              selectedDateTime = DateTime.now().add(const Duration(hours: 1));
+                            });
+                          },
+                          isDark: isDark,
+                        ),
+                        _buildTimeChip(
+                          label: 'Tomorrow 8 AM',
+                          isSelected: selectedOption == 3,
+                          onTap: () {
+                            setModalState(() {
+                              selectedOption = 3;
+                              final tomorrow = DateTime.now().add(const Duration(days: 1));
+                              selectedDateTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8, 0);
+                            });
+                          },
+                          isDark: isDark,
+                        ),
+                        _buildTimeChip(
+                          label: 'Custom...',
+                          isSelected: selectedOption == 5,
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDateTime,
+                              firstDate: DateTime.now().isBefore(selectedDateTime) ? DateTime.now() : selectedDateTime,
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (date != null && context.mounted) {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(selectedDateTime),
+                              );
+                              if (time != null) {
+                                setModalState(() {
+                                  selectedOption = 5;
+                                  selectedDateTime = DateTime(
+                                    date.year,
+                                    date.month,
+                                    date.day,
+                                    time.hour,
+                                    time.minute,
+                                  );
+                                });
+                              }
+                            }
+                          },
+                          isDark: isDark,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.access_time_filled,
+                            size: 16,
+                            color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Will remind on: ${DateFormat('MMM d, yyyy - h:mm a').format(selectedDateTime)}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: StitchTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                  ),
+                  onPressed: () async {
+                    final text = contentController.text.trim();
+                    if (text.isNotEmpty) {
+                      await provider.updateReminder(
+                        reminderId: reminder.id,
+                        content: text,
+                        time: selectedDateTime,
+                      );
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTimeChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    final activeColor = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
+    final activeTextColor = isDark ? Colors.black : Colors.white;
+    final inactiveBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100;
+    final inactiveBorderColor = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.grey.shade300;
+    final inactiveTextColor = isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface;
+
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      labelStyle: TextStyle(
+        color: isSelected ? activeTextColor : inactiveTextColor,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 13,
+      ),
+      selectedColor: activeColor,
+      backgroundColor: inactiveBgColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isSelected ? Colors.transparent : inactiveBorderColor,
+        ),
+      ),
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
     );
   }
 
