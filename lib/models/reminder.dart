@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 
-part 'reminder.g.dart';
+part 'reminder-g.dart';
 
 @HiveType(typeId: 2)
 class Reminder extends HiveObject {
@@ -17,7 +17,7 @@ class Reminder extends HiveObject {
   String content;
 
   @HiveField(4)
-  DateTime time;
+  DateTime? time;
 
   @HiveField(5)
   bool isCompleted;
@@ -30,7 +30,7 @@ class Reminder extends HiveObject {
     required this.chatId,
     required this.messageId,
     required this.content,
-    required this.time,
+    this.time,
     this.isCompleted = false,
     required this.createdAt,
   });

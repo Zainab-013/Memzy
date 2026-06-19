@@ -5,11 +5,14 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
+import '../models/chat.dart';
 import '../models/message.dart';
 import '../models/reminder.dart';
 import '../theme/stitch_theme.dart';
 import '../widgets/full_screen_image_viewer.dart';
 import 'chat_attachments_screen.dart';
+import 'starred_messages_screen.dart';
+import '../widgets/passcode_view.dart';
 
 class ChatInfoScreen extends StatefulWidget {
   final String chatId;
@@ -36,13 +39,86 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     super.dispose();
   }
 
+  void _toggleChatLock(BuildContext context, Chat chat, ChatProvider provider) {
+    if (chat.isLocked) {
+      // Unlock flow
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PasscodeView(
+            mode: 'verify',
+            title: "Unlock Chat",
+            onSuccess: (passcode) async {
+              Navigator.pop(context);
+              await provider.toggleLockChat(chat.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Chat unlocked successfully')),
+                );
+              }
+            },
+            onCancel: () => Navigator.pop(context),
+          ),
+        ),
+      );
+    } else {
+      // Lock flow
+      if (!provider.isPasscodeSet) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PasscodeView(
+              mode: 'create',
+              title: "Set Passcode",
+              onSuccess: (passcode) async {
+                await provider.setPasscode(passcode);
+                await provider.toggleLockChat(chat.id);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Passcode set and chat locked')),
+                  );
+                }
+              },
+              onCancel: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PasscodeView(
+              mode: 'verify',
+              title: "Lock Chat",
+              onSuccess: (passcode) async {
+                Navigator.pop(context);
+                await provider.toggleLockChat(chat.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Chat locked successfully')),
+                  );
+                }
+              },
+              onCancel: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
 
-    final chat = chatProvider.chats.firstWhere((c) => c.id == widget.chatId);
+    final chatList = chatProvider.chats.where((c) => c.id == widget.chatId).toList();
+    if (chatList.isEmpty) {
+      return const Scaffold(body: SizedBox.shrink());
+    }
+    final chat = chatList.first;
     final messages = chatProvider.getMessagesForChat(widget.chatId);
     final chatReminders = chatProvider.reminders
         .where((r) => r.chatId == widget.chatId && !r.isCompleted)
@@ -83,8 +159,11 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 48,
+        titleSpacing: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.chevron_left),
+          padding: EdgeInsets.zero,
           onPressed: () => Navigator.pop(context),
         ),
         title: _isSearching
@@ -222,7 +301,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                       ),
                       child: Center(
                         child: Icon(
-                          IconData(chat.iconCode, fontFamily: 'MaterialIcons'),
+                          StitchTheme.getChatIcon(chat.iconCode),
                           color: Colors.white,
                           size: 40,
                         ),
@@ -240,9 +319,9 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                     const SizedBox(height: 4),
                     Text(
                       "Created: ${DateFormat('MMM d, yyyy').format(chat.createdAt)}",
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: StitchTheme.outline,
+                        color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -308,7 +387,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         'No active reminders for this thread.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                         ),
                       ),
                     )
@@ -324,6 +403,52 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                     ),
               const SizedBox(height: 32),
 
+              // Lock Chat Setting Card
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
+                  border: Border.all(
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
+                  ),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: StitchTheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.lock_outline, color: StitchTheme.primary),
+                  ),
+                  title: Text(
+                    'Lock Chat',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Obscure messages with a passcode',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                    ),
+                  ),
+                  trailing: Switch.adaptive(
+                    value: chat.isLocked,
+                    activeColor: StitchTheme.primary,
+                    onChanged: (bool value) {
+                      _toggleChatLock(context, chat, chatProvider);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+
               // Action buttons (Bento styles)
               Row(
                 children: [
@@ -334,34 +459,10 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                       color: StitchTheme.primary,
                       isDark: isDark,
                       onTap: () {
-                        // Find starred messages in this chat
-                        final starred = messages.where((m) => m.isStarred).toList();
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
-                            title: const Text('Starred Messages'),
-                            content: starred.isEmpty
-                                ? const Text('No starred messages in this chat.')
-                                : SizedBox(
-                                    width: double.maxFinite,
-                                    child: ListView.builder(
-                                      shrinkWrap: true,
-                                      itemCount: starred.length,
-                                      itemBuilder: (context, idx) => ListTile(
-                                        title: Text(starred[idx].text),
-                                        subtitle: Text(
-                                          DateFormat('MMM d, h:mm a').format(starred[idx].timestamp),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                            actions: [
-                              TextButton(
-                                child: const Text('Close'),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                            ],
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => StarredMessagesScreen(chatId: widget.chatId),
                           ),
                         );
                       },
@@ -463,7 +564,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
         child: Text(
           'No documents or images yet',
           style: TextStyle(
-            color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+            color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
           ),
         ),
       );
@@ -612,6 +713,13 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: isDark ? Colors.grey.shade900 : Colors.grey.shade300,
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.broken_image, size: 32),
+                    );
+                  },
                 ),
               )
             : Center(
@@ -680,9 +788,9 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                   const SizedBox(height: 2),
                   Text(
                     url,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: StitchTheme.outline,
+                      color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -690,7 +798,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: StitchTheme.outline),
+            Icon(Icons.chevron_right, color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
           ],
         ),
       ),
@@ -717,7 +825,11 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               color: StitchTheme.secondary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.notifications_active, color: StitchTheme.secondary, size: 18),
+            child: Icon(
+              reminder.time == null ? Icons.notifications_off : Icons.notifications_active,
+              color: StitchTheme.secondary,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -735,10 +847,16 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.schedule, size: 12, color: StitchTheme.secondary),
+                    Icon(
+                      reminder.time == null ? Icons.notifications_off : Icons.schedule,
+                      size: 12,
+                      color: StitchTheme.secondary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      DateFormat('MMM d, h:mm a').format(reminder.time),
+                      reminder.time == null
+                          ? "No set time"
+                          : DateFormat('MMM d, h:mm a').format(reminder.time!),
                       style: const TextStyle(
                         fontSize: 12,
                         color: StitchTheme.secondary,
@@ -762,7 +880,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
   void _showEditReminderDialog(BuildContext context, Reminder reminder, bool isDark) {
     final provider = Provider.of<ChatProvider>(context, listen: false);
     final titleController = TextEditingController(text: reminder.content);
-    DateTime selectedDateTime = reminder.time;
+    DateTime selectedDateTime = reminder.time ?? DateTime.now().add(const Duration(hours: 1));
     int selectedOption = 5;
 
     showDialog(
@@ -771,6 +889,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return AlertDialog(
+              scrollable: true,
               backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
               title: const Text('Edit Reminder'),
               content: Column(
@@ -885,7 +1004,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         Icon(
                           Icons.access_time_filled,
                           size: 16,
-                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -893,7 +1012,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                             'Will remind on: ${DateFormat('MMM d, yyyy - h:mm a').format(selectedDateTime)}',
                             style: TextStyle(
                               fontSize: 13,
-                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -983,6 +1102,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return AlertDialog(
+              scrollable: true,
               backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
               title: const Text('Add Reminder'),
               content: Column(
@@ -1056,7 +1176,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                           final date = await showDatePicker(
                             context: context,
                             initialDate: selectedDateTime,
-                            firstDate: DateTime.now(),
+                            firstDate: DateTime.now().isBefore(selectedDateTime) ? DateTime.now() : selectedDateTime,
                             lastDate: DateTime.now().add(const Duration(days: 365)),
                           );
                           if (date != null && context.mounted) {
@@ -1097,7 +1217,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         Icon(
                           Icons.access_time_filled,
                           size: 16,
-                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -1105,7 +1225,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                             'Will remind on: ${DateFormat('MMM d, yyyy - h:mm a').format(selectedDateTime)}',
                             style: TextStyle(
                               fontSize: 13,
-                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                             ),
                           ),

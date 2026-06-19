@@ -41,31 +41,47 @@ class ChatProvider extends ChangeNotifier {
     return list;
   }
 
+  final Map<String, String> _pendingReminderContent = {};
+  final Map<String, String> _pendingReminderMsgId = {};
+  final Map<String, String> _pendingReminderTime = {};
+
   List<Reminder> get reminders => _reminders;
 
   List<Reminder> get todayReminders {
     final now = DateTime.now();
     return _reminders.where((r) {
-      final isSameDay = r.time.year == now.year &&
-          r.time.month == now.month &&
-          r.time.day == now.day;
+      if (r.time == null) return false;
+      final isSameDay = r.time!.year == now.year &&
+          r.time!.month == now.month &&
+          r.time!.day == now.day;
       return isSameDay && !r.isCompleted;
     }).toList()
-      ..sort((a, b) => a.time.compareTo(b.time));
+      ..sort((a, b) => a.time!.compareTo(b.time!));
   }
 
   List<Reminder> get upcomingReminders {
     final now = DateTime.now();
     final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
     return _reminders.where((r) {
-      return r.time.isAfter(todayEnd) && !r.isCompleted;
+      if (r.time == null) return false;
+      return r.time!.isAfter(todayEnd) && !r.isCompleted;
     }).toList()
-      ..sort((a, b) => a.time.compareTo(b.time));
+      ..sort((a, b) => a.time!.compareTo(b.time!));
+  }
+
+  List<Reminder> get anytimeReminders {
+    return _reminders.where((r) => r.time == null && !r.isCompleted).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   List<Reminder> get completedReminders {
     return _reminders.where((r) => r.isCompleted).toList()
-      ..sort((a, b) => b.time.compareTo(a.time));
+      ..sort((a, b) {
+        if (a.time == null && b.time == null) return b.createdAt.compareTo(a.createdAt);
+        if (a.time == null) return 1;
+        if (b.time == null) return -1;
+        return b.time!.compareTo(a.time!);
+      });
   }
 
   ChatProvider() {
@@ -130,6 +146,27 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Passcode Settings
+  bool get isPasscodeSet => DatabaseService.settingsBox.get('passcode') != null;
+  String? get passcode => DatabaseService.settingsBox.get('passcode') as String?;
+
+  Future<void> setPasscode(String code) async {
+    await DatabaseService.settingsBox.put('passcode', code);
+    notifyListeners();
+  }
+
+  bool verifyPasscode(String input) {
+    return passcode == input;
+  }
+
+  // Toggle Lock / Unlock chat
+  Future<void> toggleLockChat(String chatId) async {
+    final chat = _chats.firstWhere((c) => c.id == chatId);
+    chat.isLocked = !chat.isLocked;
+    await chat.save();
+    notifyListeners();
+  }
+
   // Delete chat and its associated messages/reminders
   Future<void> deleteChat(String chatId) async {
     // Delete chat from box
@@ -159,7 +196,7 @@ class ChatProvider extends ChangeNotifier {
     required String chatId,
     required String messageId,
     required String content,
-    required DateTime time,
+    required DateTime? time,
   }) async {
     final reminderId = _uuid.v4();
     final reminder = Reminder(
@@ -176,27 +213,29 @@ class ChatProvider extends ChangeNotifier {
     _reminders.add(reminder);
 
     // Schedule Alarm (exact time) and Warning (10 minutes before)
-    final notificationId = reminderId.hashCode;
-    final warningTime = time.subtract(const Duration(minutes: 10));
-    final payloadString = "$reminderId|$chatId";
+    if (time != null) {
+      final notificationId = reminderId.hashCode;
+      final warningTime = time.subtract(const Duration(minutes: 10));
+      final payloadString = "$reminderId|$chatId";
 
-    await NotificationService.scheduleNotification(
-      id: notificationId,
-      title: "Memzy Alarm",
-      body: content,
-      scheduledTime: time,
-      payload: payloadString,
-      isAlarm: true,
-    );
+      await NotificationService.scheduleNotification(
+        id: notificationId,
+        title: "Memzy Reminder",
+        body: content,
+        scheduledTime: time,
+        payload: payloadString,
+        isAlarm: false,
+      );
 
-    await NotificationService.scheduleNotification(
-      id: notificationId + 1,
-      title: "Upcoming Reminder (in 10m)",
-      body: content,
-      scheduledTime: warningTime,
-      payload: payloadString,
-      isAlarm: false,
-    );
+      await NotificationService.scheduleNotification(
+        id: notificationId + 1,
+        title: "Upcoming Reminder (in 10m)",
+        body: content,
+        scheduledTime: warningTime,
+        payload: payloadString,
+        isAlarm: false,
+      );
+    }
 
     notifyListeners();
     return reminder;
@@ -206,7 +245,7 @@ class ChatProvider extends ChangeNotifier {
   Future<void> updateReminder({
     required String reminderId,
     required String content,
-    required DateTime time,
+    required DateTime? time,
   }) async {
     final reminderIndex = _reminders.indexWhere((r) => r.id == reminderId);
     if (reminderIndex != -1) {
@@ -220,18 +259,18 @@ class ChatProvider extends ChangeNotifier {
       await r.save();
 
       // 3. Re-schedule notifications if not completed
-      if (!r.isCompleted) {
+      if (!r.isCompleted && time != null) {
         final notificationId = r.id.hashCode;
         final warningTime = time.subtract(const Duration(minutes: 10));
         final payloadString = "${r.id}|${r.chatId}";
 
         await NotificationService.scheduleNotification(
           id: notificationId,
-          title: "Memzy Alarm",
+          title: "Memzy Reminder",
           body: content,
           scheduledTime: time,
           payload: payloadString,
-          isAlarm: true,
+          isAlarm: false,
         );
 
         await NotificationService.scheduleNotification(
@@ -275,49 +314,210 @@ class ChatProvider extends ChangeNotifier {
 
     bool reminderCreated = false;
 
-    // Check if the message contains a reminder
-    if (type == 'text') {
-      final parseResult = ReminderParser.parse(text);
-      if (parseResult != null) {
-        await createReminder(
-          chatId: chatId,
-          messageId: messageId,
-          content: parseResult.content,
-          time: parseResult.time,
-        );
+    final cleanTextText = text.trim();
+    final isDefaultAttachmentText = cleanTextText == "Sent an image" ||
+        cleanTextText == "Sent a document" ||
+        cleanTextText == "Sent a PDF";
+    final shouldParseReminder = (type == 'text') || (cleanTextText.isNotEmpty && !isDefaultAttachmentText);
 
-        // Format and add system response message
-        final formattedTime = _formatReminderTime(parseResult.time);
-        final systemMsg = Message(
-          id: _uuid.v4(),
-          chatId: chatId,
-          text: "✓ Noted. Reminder created for $formattedTime.",
-          sender: 'system',
-          timestamp: DateTime.now().add(const Duration(milliseconds: 100)),
-          type: 'text',
-        );
+    if (shouldParseReminder) {
+      if (_pendingReminderContent.containsKey(chatId)) {
+        // We were waiting for a time for a pending reminder!
+        final cleanText = text.trim().toLowerCase();
 
-        await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
-        _messages.add(systemMsg);
+        if (_pendingReminderTime.containsKey(chatId)) {
+          final isAm = cleanText == 'am' || cleanText.contains('am');
+          final isPm = cleanText == 'pm' || cleanText.contains('pm');
+
+          if (isAm || isPm) {
+            final amPm = isAm ? 'am' : 'pm';
+            final originalTimeText = _pendingReminderTime[chatId]!;
+            final combinedTimeText = "$originalTimeText $amPm";
+
+            final parseResult = ReminderParser.parse(combinedTimeText, requireRemindKeyword: false);
+            final pendingContent = _pendingReminderContent[chatId]!;
+            final pendingMsgId = _pendingReminderMsgId[chatId]!;
+
+            if (parseResult != null) {
+              await createReminder(
+                chatId: chatId,
+                messageId: pendingMsgId,
+                content: pendingContent,
+                time: parseResult.time,
+              );
+            } else {
+              await createReminder(
+                chatId: chatId,
+                messageId: pendingMsgId,
+                content: pendingContent,
+                time: null,
+              );
+            }
+
+            _pendingReminderContent.remove(chatId);
+            _pendingReminderMsgId.remove(chatId);
+            _pendingReminderTime.remove(chatId);
+            reminderCreated = true;
+            notifyListeners();
+            return;
+          }
+        }
+
+        final hasNumber = RegExp(r'\b\d{1,2}(?::\d{2})?\b').hasMatch(text);
+        final hasAmPm = RegExp(r'\b(am|pm)\b', caseSensitive: false).hasMatch(text);
+
+        if (hasNumber && !hasAmPm) {
+          _pendingReminderTime[chatId] = text;
+
+          final systemMsg = Message(
+            id: _uuid.v4(),
+            chatId: chatId,
+            text: "am or pm",
+            sender: 'system',
+            timestamp: DateTime.now().add(const Duration(milliseconds: 100)),
+            type: 'text',
+          );
+
+          await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
+          _messages.add(systemMsg);
+          reminderCreated = true;
+          notifyListeners();
+          return;
+        }
+
+        final parseResult = ReminderParser.parse(text, requireRemindKeyword: false);
+        final pendingContent = _pendingReminderContent[chatId]!;
+        final pendingMsgId = _pendingReminderMsgId[chatId]!;
+
+        if (parseResult != null && parseResult.hasTimeExpression) {
+          await createReminder(
+            chatId: chatId,
+            messageId: pendingMsgId,
+            content: pendingContent,
+            time: parseResult.time,
+          );
+        } else {
+          // If the user still doesn't tell a time, make a reminder with no time!
+          await createReminder(
+            chatId: chatId,
+            messageId: pendingMsgId,
+            content: pendingContent,
+            time: null,
+          );
+        }
+
+        _pendingReminderContent.remove(chatId);
+        _pendingReminderMsgId.remove(chatId);
+        _pendingReminderTime.remove(chatId);
         reminderCreated = true;
         notifyListeners();
+      } else {
+        // Normal flow
+        final parseResult = ReminderParser.parse(text);
+        if (parseResult != null) {
+          final cleanContent = parseResult.content.trim().toLowerCase();
+          final isPronoun = cleanContent.isEmpty ||
+              cleanContent == 'that' ||
+              cleanContent == 'this' ||
+              cleanContent == 'it' ||
+              cleanContent == 'above' ||
+              cleanContent == 'prev' ||
+              cleanContent == 'previous' ||
+              cleanContent == 'to do that' ||
+              cleanContent == 'to do this' ||
+              cleanContent == 'reminder';
+
+          DateTime finalTime = parseResult.time;
+          String finalContent = parseResult.content;
+          bool hasResolvedTime = parseResult.hasTimeExpression;
+
+          if (isPronoun) {
+            // Look for previous user text message in this chat
+            final chatMessages = getMessagesForChat(chatId);
+            Message? prevUserMsg;
+            for (int i = chatMessages.length - 2; i >= 0; i--) {
+              if (chatMessages[i].sender == 'user' && chatMessages[i].type == 'text') {
+                prevUserMsg = chatMessages[i];
+                break;
+              }
+            }
+            if (prevUserMsg != null) {
+              // Try parsing the previous message context without requiring "remind" keyword
+              final prevParse = ReminderParser.parse(prevUserMsg.text, requireRemindKeyword: false);
+
+              // If the current message has no time expression (e.g. "remind me of that")
+              // but the previous message does have a time expression (e.g. "I have a meeting after one minute")
+              if (!parseResult.hasTimeExpression && prevParse != null && prevParse.hasTimeExpression) {
+                finalTime = prevParse.time;
+                finalContent = prevParse.content;
+                hasResolvedTime = true;
+              } else {
+                // Otherwise, we keep the current time (if any) and use the previous message text as the content
+                finalContent = prevUserMsg.text;
+                // Clean time expressions from finalContent if they exist
+                if (prevParse != null && prevParse.hasTimeExpression) {
+                  finalContent = prevParse.content;
+                }
+              }
+            }
+          } else if (cleanContent == 'reminder' && parseResult.hasTimeExpression) {
+            // If content is just "reminder" but has time, e.g. "remind me in 5 minutes"
+            // Look back for previous message content
+            final chatMessages = getMessagesForChat(chatId);
+            Message? prevUserMsg;
+            for (int i = chatMessages.length - 2; i >= 0; i--) {
+              if (chatMessages[i].sender == 'user' && chatMessages[i].type == 'text') {
+                prevUserMsg = chatMessages[i];
+                break;
+              }
+            }
+            if (prevUserMsg != null) {
+              final prevParse = ReminderParser.parse(prevUserMsg.text, requireRemindKeyword: false);
+              finalContent = prevUserMsg.text;
+              if (prevParse != null && prevParse.hasTimeExpression) {
+                finalContent = prevParse.content;
+              }
+            }
+          }
+
+          // Clean up finalContent pronoun references if it's still generic/pronoun
+          if (finalContent.trim().toLowerCase() == 'that' ||
+              finalContent.trim().toLowerCase() == 'this' ||
+              finalContent.trim().toLowerCase() == 'it') {
+            finalContent = "Reminder";
+          }
+
+          if (!hasResolvedTime) {
+            // Store pending reminder information and ask for time
+            _pendingReminderContent[chatId] = finalContent;
+            _pendingReminderMsgId[chatId] = messageId;
+
+            final systemMsg = Message(
+              id: _uuid.v4(),
+              chatId: chatId,
+              text: "Please specify a time for the reminder.",
+              sender: 'system',
+              timestamp: DateTime.now().add(const Duration(milliseconds: 100)),
+              type: 'text',
+            );
+
+            await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
+            _messages.add(systemMsg);
+            reminderCreated = true;
+            notifyListeners();
+          } else {
+            await createReminder(
+              chatId: chatId,
+              messageId: messageId,
+              content: finalContent,
+              time: finalTime,
+            );
+
+            reminderCreated = true;
+            notifyListeners();
+          }
+        }
       }
-    }
-
-    if (!reminderCreated) {
-      // Auto-reply for any other message
-      final systemMsg = Message(
-        id: _uuid.v4(),
-        chatId: chatId,
-        text: "✓ Noted.",
-        sender: 'system',
-        timestamp: DateTime.now().add(const Duration(milliseconds: 100)),
-        type: 'text',
-      );
-
-      await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
-      _messages.add(systemMsg);
-      notifyListeners();
     }
   }
 
@@ -325,6 +525,26 @@ class ChatProvider extends ChangeNotifier {
   Future<void> toggleStarMessage(String messageId) async {
     final msg = _messages.firstWhere((m) => m.id == messageId);
     msg.isStarred = !msg.isStarred;
+    await msg.save();
+    notifyListeners();
+  }
+
+  // Unstar all starred messages in a specific chat
+  Future<void> unstarAllMessages(String chatId) async {
+    final chatMessages = _messages.where((m) => m.chatId == chatId).toList();
+    for (var msg in chatMessages) {
+      if (msg.isStarred) {
+        msg.isStarred = false;
+        await msg.save();
+      }
+    }
+    notifyListeners();
+  }
+
+  // Toggle Message Pin status
+  Future<void> togglePinMessage(String messageId) async {
+    final msg = _messages.firstWhere((m) => m.id == messageId);
+    msg.isPinned = !(msg.isPinned ?? false);
     await msg.save();
     notifyListeners();
   }
@@ -339,27 +559,29 @@ class ChatProvider extends ChangeNotifier {
       await NotificationService.cancelNotification(reminder.id.hashCode);
     } else {
       // Re-schedule notifications
-      final notificationId = reminder.id.hashCode;
-      final warningTime = reminder.time.subtract(const Duration(minutes: 10));
-      final payloadString = "${reminder.id}|${reminder.chatId}";
+      if (reminder.time != null) {
+        final notificationId = reminder.id.hashCode;
+        final warningTime = reminder.time!.subtract(const Duration(minutes: 10));
+        final payloadString = "${reminder.id}|${reminder.chatId}";
 
-      await NotificationService.scheduleNotification(
-        id: notificationId,
-        title: "Memzy Alarm",
-        body: reminder.content,
-        scheduledTime: reminder.time,
-        payload: payloadString,
-        isAlarm: true,
-      );
+        await NotificationService.scheduleNotification(
+          id: notificationId,
+          title: "Memzy Reminder",
+          body: reminder.content,
+          scheduledTime: reminder.time!,
+          payload: payloadString,
+          isAlarm: false,
+        );
 
-      await NotificationService.scheduleNotification(
-        id: notificationId + 1,
-        title: "Upcoming Reminder (in 10m)",
-        body: reminder.content,
-        scheduledTime: warningTime,
-        payload: payloadString,
-        isAlarm: false,
-      );
+        await NotificationService.scheduleNotification(
+          id: notificationId + 1,
+          title: "Upcoming Reminder (in 10m)",
+          body: reminder.content,
+          scheduledTime: warningTime,
+          payload: payloadString,
+          isAlarm: false,
+        );
+      }
     }
     notifyListeners();
   }
@@ -424,7 +646,114 @@ class ChatProvider extends ChangeNotifier {
     };
   }
 
-  String _formatReminderTime(DateTime dateTime) {
+  // Edit text of a message, updating associated reminders if any
+  Future<void> editMessageText(String messageId, String newText) async {
+    final msgIndex = _messages.indexWhere((m) => m.id == messageId);
+    if (msgIndex != -1) {
+      final msg = _messages[msgIndex];
+      msg.text = newText;
+      msg.isEdited = true;
+      await msg.save();
+      
+      String? updatedResponseText;
+
+      final parseResult = ReminderParser.parse(newText);
+      final reminderIndex = _reminders.indexWhere((r) => r.messageId == messageId);
+
+      if (parseResult != null) {
+        if (parseResult.hasTimeExpression) {
+          if (reminderIndex != -1) {
+            final reminder = _reminders[reminderIndex];
+            await updateReminder(
+              reminderId: reminder.id,
+              content: parseResult.content,
+              time: parseResult.time,
+            );
+          } else {
+            await createReminder(
+              chatId: msg.chatId,
+              messageId: msg.id,
+              content: parseResult.content,
+              time: parseResult.time,
+            );
+          }
+          updatedResponseText = null;
+        } else {
+          // It is a reminder but has no time expression!
+          if (reminderIndex != -1) {
+            final reminder = _reminders[reminderIndex];
+            await updateReminder(
+              reminderId: reminder.id,
+              content: parseResult.content,
+              time: null,
+            );
+          } else {
+            await createReminder(
+              chatId: msg.chatId,
+              messageId: msg.id,
+              content: parseResult.content,
+              time: null,
+            );
+          }
+          updatedResponseText = "Please specify a time for the reminder.";
+        }
+      } else {
+        // Not a reminder!
+        if (reminderIndex != -1) {
+          // Delete old reminder
+          final r = _reminders[reminderIndex];
+          await NotificationService.cancelNotification(r.id.hashCode);
+          await DatabaseService.remindersBox.delete(r.id);
+          _reminders.remove(r);
+        }
+        updatedResponseText = null;
+      }
+
+      // Now update or delete the system response message
+      final chatMessages = getMessagesForChat(msg.chatId);
+      int userMsgIndex = chatMessages.indexWhere((m) => m.id == messageId);
+      if (userMsgIndex != -1 && userMsgIndex < chatMessages.length - 1) {
+        final nextMsg = chatMessages[userMsgIndex + 1];
+        if (nextMsg.sender == 'system') {
+          if (updatedResponseText != null) {
+            nextMsg.text = updatedResponseText;
+            nextMsg.isEdited = true;
+            await nextMsg.save();
+          } else {
+            await deleteMessage(nextMsg.id);
+          }
+        } else if (updatedResponseText != null) {
+          // Create new system message if none existed but one is now needed
+          final systemMsg = Message(
+            id: _uuid.v4(),
+            chatId: msg.chatId,
+            text: updatedResponseText,
+            sender: 'system',
+            timestamp: DateTime.now().add(const Duration(milliseconds: 100)),
+            type: 'text',
+          );
+          await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
+          _messages.add(systemMsg);
+        }
+      } else if (updatedResponseText != null) {
+        // Create new system message if none existed at the end of the chat
+        final systemMsg = Message(
+          id: _uuid.v4(),
+          chatId: msg.chatId,
+          text: updatedResponseText,
+          sender: 'system',
+          timestamp: DateTime.now().add(const Duration(milliseconds: 100)),
+          type: 'text',
+        );
+        await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
+        _messages.add(systemMsg);
+      }
+      
+      notifyListeners();
+    }
+  }
+
+  String formatReminderTime(DateTime dateTime) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));

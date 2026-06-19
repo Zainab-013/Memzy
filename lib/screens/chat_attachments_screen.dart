@@ -10,6 +10,8 @@ import '../widgets/full_screen_image_viewer.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 class ChatAttachmentsScreen extends StatefulWidget {
   final String chatId;
@@ -94,7 +96,11 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
 
-    final chat = chatProvider.chats.firstWhere((c) => c.id == widget.chatId);
+    final chatList = chatProvider.chats.where((c) => c.id == widget.chatId).toList();
+    if (chatList.isEmpty) {
+      return const Scaffold(body: SizedBox.shrink());
+    }
+    final chat = chatList.first;
     final messages = chatProvider.getMessagesForChat(widget.chatId);
     final allStarred = _selectedItemIds.isNotEmpty &&
         messages.where((m) => _selectedItemIds.contains(m.id)).every((m) => m.isStarred);
@@ -136,9 +142,12 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 48,
+        titleSpacing: 0,
         leading: _isSelectionMode
             ? IconButton(
                 icon: const Icon(Icons.close),
+                padding: EdgeInsets.zero,
                 onPressed: () {
                   setState(() {
                     _isSelectionMode = false;
@@ -147,7 +156,8 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                 },
               )
             : IconButton(
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(Icons.chevron_left),
+                padding: EdgeInsets.zero,
                 onPressed: () => Navigator.pop(context),
               ),
         title: Text(_isSelectionMode ? '${_selectedItemIds.length} Selected' : '${chat.title} Attachments'),
@@ -158,7 +168,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                   onPressed: () => _shareSelectedItems(chatProvider),
                 ),
                 IconButton(
-                  icon: Icon(allStarred ? Icons.star_border : Icons.star, color: Colors.amber),
+                  icon: Icon(allStarred ? Icons.star : Icons.star_border, color: Colors.amber),
                   onPressed: () => _starSelectedItems(chatProvider),
                 ),
                 IconButton(
@@ -193,7 +203,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                         fontWeight: FontWeight.w600,
                         color: isSelected
                             ? Colors.white
-                            : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline),
+                            : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
                       ),
                       selectedColor: StitchTheme.primary,
                       backgroundColor: inactiveColor,
@@ -365,7 +375,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
   ) {
     switch (_activeTab) {
       case 0: // Photos
-        if (photos.isEmpty) return _buildEmptyState("No photos or images in this thread.", Icons.image);
+        if (photos.isEmpty) return _buildEmptyState("No photos or images in this thread.", Icons.image, isDark);
         return GridView.builder(
           padding: const EdgeInsets.all(16.0),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -423,6 +433,13 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                             child: Image.file(
                               File(msg.fileLocalPath!),
                               fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: isDark ? Colors.grey.shade900 : Colors.grey.shade300,
+                                  alignment: Alignment.center,
+                                  child: const Icon(Icons.broken_image, size: 32),
+                                );
+                              },
                             ),
                           )
                         : const Center(child: Icon(Icons.image, color: StitchTheme.outline)),
@@ -446,7 +463,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
           },
         );
       case 1: // PDFs
-        if (docs.isEmpty) return _buildEmptyState("No documents or PDFs in this thread.", Icons.insert_drive_file);
+        if (docs.isEmpty) return _buildEmptyState("No documents or PDFs in this thread.", Icons.insert_drive_file, isDark);
         return ListView.separated(
           padding: const EdgeInsets.all(16.0),
           itemCount: docs.length,
@@ -467,7 +484,16 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                   });
                 } else if (msg.fileLocalPath != null) {
                   try {
-                    await OpenFilex.open(msg.fileLocalPath);
+                    final file = File(msg.fileLocalPath!);
+                    if (!await file.exists()) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("File not found on this device.")),
+                        );
+                      }
+                      return;
+                    }
+                    await OpenFilex.open(msg.fileLocalPath!);
                   } catch (e) {
                     debugPrint("Error opening document: $e");
                     if (context.mounted) {
@@ -540,9 +566,9 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                                   msg.fileSize != null
                                       ? "${(msg.fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB • ${msg.type.toUpperCase()}"
                                       : msg.type.toUpperCase(),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
-                                    color: StitchTheme.outline,
+                                    color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -563,7 +589,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
           },
         );
       case 2: // Links
-        if (links.isEmpty) return _buildEmptyState("No extracted links in this thread.", Icons.link);
+        if (links.isEmpty) return _buildEmptyState("No extracted links in this thread.", Icons.link, isDark);
         return ListView.separated(
           padding: const EdgeInsets.all(16.0),
           itemCount: links.length,
@@ -573,7 +599,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
             final linkId = link['id']!;
             final isSelected = _selectedItemIds.contains(linkId);
             return GestureDetector(
-              onTap: () {
+              onTap: () async {
                 if (_isSelectionMode) {
                   setState(() {
                     if (isSelected) {
@@ -582,6 +608,20 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                       _selectedItemIds.add(linkId);
                     }
                   });
+                } else {
+                  final url = link['url']!;
+                  final uri = Uri.tryParse(url);
+                  if (uri != null) {
+                    try {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Could not launch link: $url')),
+                        );
+                      }
+                    }
+                  }
                 }
               },
               onLongPress: () {
@@ -642,9 +682,9 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   link['url']!,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
-                                    color: StitchTheme.outline,
+                                    color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -653,7 +693,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                             ),
                           ),
                           if (!_isSelectionMode)
-                            const Icon(Icons.chevron_right, color: StitchTheme.outline),
+                            Icon(Icons.chevron_right, color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
                         ],
                       ),
                     ),
@@ -664,7 +704,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
           },
         );
       case 3: // Messages
-        if (textMsgs.isEmpty) return _buildEmptyState("No text messages in this thread.", Icons.chat_bubble_outline);
+        if (textMsgs.isEmpty) return _buildEmptyState("No text messages in this thread.", Icons.chat_bubble_outline, isDark);
         return ListView.separated(
           padding: const EdgeInsets.all(16.0),
           itemCount: textMsgs.length,
@@ -730,7 +770,10 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                               ),
                               Text(
                                 DateFormat('MMM d, h:mm a').format(msg.timestamp),
-                                style: const TextStyle(fontSize: 11, color: StitchTheme.outline),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
@@ -752,7 +795,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
           },
         );
       case 4: // Starred
-        if (starred.isEmpty) return _buildEmptyState("No starred messages in this thread.", Icons.star_border);
+        if (starred.isEmpty) return _buildEmptyState("No starred messages in this thread.", Icons.star_border, isDark);
         return ListView.separated(
           padding: const EdgeInsets.all(16.0),
           itemCount: starred.length,
@@ -762,7 +805,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
             final isMe = msg.sender == 'user';
             final isSelected = _selectedItemIds.contains(msg.id);
             return GestureDetector(
-              onTap: () {
+              onTap: () async {
                 if (_isSelectionMode) {
                   setState(() {
                     if (isSelected) {
@@ -771,6 +814,56 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                       _selectedItemIds.add(msg.id);
                     }
                   });
+                } else {
+                  if (msg.type == 'image') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FullScreenImageViewer(
+                          imagePath: msg.fileLocalPath,
+                          fileName: msg.fileName ?? "image.jpg",
+                          heroTag: "starred_attachment_${msg.fileLocalPath ?? msg.id}",
+                        ),
+                      ),
+                    );
+                  } else if ((msg.type == 'pdf' || msg.type == 'document') && msg.fileLocalPath != null) {
+                    try {
+                      final file = File(msg.fileLocalPath!);
+                      if (!await file.exists()) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("File not found on this device.")),
+                          );
+                        }
+                        return;
+                      }
+                      await OpenFilex.open(msg.fileLocalPath!);
+                    } catch (e) {
+                      debugPrint("Error opening file: $e");
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Could not open this file type")),
+                        );
+                      }
+                    }
+                  } else if (msg.type == 'text' && _urlRegex.hasMatch(msg.text)) {
+                    final matches = _urlRegex.allMatches(msg.text);
+                    if (matches.isNotEmpty) {
+                      final url = matches.first.group(0)!;
+                      final uri = Uri.tryParse(url);
+                      if (uri != null) {
+                        try {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Could not launch link: $url')),
+                            );
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               },
               onLongPress: () {
@@ -818,18 +911,112 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                               ),
                               Text(
                                 DateFormat('MMM d, h:mm a').format(msg.timestamp),
-                                style: const TextStyle(fontSize: 11, color: StitchTheme.outline),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            msg.text,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                          if (msg.type == 'image') ...[
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: msg.fileLocalPath != null
+                                  ? Image.file(
+                                      File(msg.fileLocalPath!),
+                                      height: 120,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          height: 120,
+                                          color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+                                          alignment: Alignment.center,
+                                          child: const Icon(Icons.broken_image, size: 32),
+                                        );
+                                      },
+                                    )
+                                  : Container(
+                                      height: 120,
+                                      color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+                                      alignment: Alignment.center,
+                                      child: const Icon(Icons.image, size: 32),
+                                    ),
                             ),
-                          ),
+                            if (msg.text != "Sent an image") ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                msg.text,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ] else if (msg.type == 'pdf' || msg.type == 'document') ...[
+                            Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: msg.type == 'pdf' ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    msg.type == 'pdf' ? Icons.picture_as_pdf : Icons.description,
+                                    color: msg.type == 'pdf' ? Colors.red : Colors.blue,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        msg.fileName ?? "Document",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        msg.fileSize != null
+                                            ? "${(msg.fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB • ${msg.type.toUpperCase()}"
+                                            : msg.type.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (msg.text != "Sent a document" && msg.text != "Sent a PDF") ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                msg.text,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ] else ...[
+                            Text(
+                              msg.text,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -844,14 +1031,19 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
     }
   }
 
-  Widget _buildEmptyState(String text, IconData icon) {
+  Widget _buildEmptyState(String text, IconData icon, bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 48, color: StitchTheme.outline),
+          Icon(icon, size: 48, color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
           const SizedBox(height: 16),
-          Text(text, style: const TextStyle(color: StitchTheme.outline)),
+          Text(
+            text,
+            style: TextStyle(
+              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );

@@ -22,12 +22,16 @@ class Chat extends HiveObject {
   @HiveField(5)
   final DateTime createdAt;
 
+  @HiveField(6)
+  bool isLocked;
+
   Chat({
     required this.id,
     required this.title,
     required this.iconCode,
     this.isPinned = false,
     this.isArchived = false,
+    this.isLocked = false,
     required this.createdAt,
   });
 }

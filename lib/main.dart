@@ -4,7 +4,7 @@ import 'providers/chat_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/database_service.dart';
 import 'services/notification_service.dart';
-import 'screens/main_shell.dart';
+import 'screens/splash_screen.dart';
 import 'theme/stitch_theme.dart';
 
 void main() async {
@@ -36,7 +36,7 @@ class MyApp extends StatelessWidget {
             theme: StitchTheme.lightTheme,
             darkTheme: StitchTheme.darkTheme,
             themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            home: const MainShell(),
+            home: const SplashScreen(),
           );
         },
       ),

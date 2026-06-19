@@ -27,13 +27,15 @@ class MessageAdapter extends TypeAdapter<Message> {
       fileLocalPath: fields[7] as String?,
       fileName: fields[8] as String?,
       fileSize: fields[9] as int?,
+      isEdited: fields[10] as bool? ?? false,
+      isPinned: fields[11] as bool? ?? false,
     );
   }
 
   @override
   void write(BinaryWriter writer, Message obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +55,11 @@ class MessageAdapter extends TypeAdapter<Message> {
       ..writeByte(8)
       ..write(obj.fileName)
       ..writeByte(9)
-      ..write(obj.fileSize);
+      ..write(obj.fileSize)
+      ..writeByte(10)
+      ..write(obj.isEdited)
+      ..writeByte(11)
+      ..write(obj.isPinned);
   }
 
   @override

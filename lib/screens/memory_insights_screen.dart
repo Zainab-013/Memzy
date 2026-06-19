@@ -98,11 +98,15 @@ class MemoryInsightsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+        backgroundColor: isDark ? StitchTheme.darkBackground : StitchTheme.background,
+        elevation: 0,
+        title: Text(
+          'Analytic',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+          ),
         ),
-        title: const Text('Memory Insights'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -110,20 +114,9 @@ class MemoryInsightsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Text(
-                'Digital Brain Analytics',
-                style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      fontFamily: 'Geist',
-                      fontSize: 26,
-                      color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
-                    ),
-              ),
-              const SizedBox(height: 6),
               Text(
                 'Insights, trends, and focus metrics for your cognitive assistant.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontFamily: 'Geist',
                       color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                     ),
               ),
@@ -161,13 +154,7 @@ class MemoryInsightsScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? [StitchTheme.primary.withValues(alpha: 0.15), StitchTheme.secondary.withValues(alpha: 0.15)]
-                        : [StitchTheme.primary.withValues(alpha: 0.05), StitchTheme.secondary.withValues(alpha: 0.05)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: isDark ? StitchTheme.darkSurfaceContainer : StitchTheme.primaryFixedDim.withValues(alpha: 0.5),
                   border: Border.all(
                     color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.shade200,
                   ),
@@ -232,11 +219,15 @@ class MemoryInsightsScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Creation Density (by Time of Day)',
-                        style: TextStyle(fontSize: 13, color: StitchTheme.outline, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -249,28 +240,28 @@ class MemoryInsightsScreen extends StatelessWidget {
                           label: "Morning",
                           value: morningCount,
                           maxValue: maxActivity,
-                          color: StitchTheme.primary,
+                          color: StitchTheme.secondary,
                           isDark: isDark,
                         ),
                         _buildChartBar(
                           label: "Afternoon",
                           value: afternoonCount,
                           maxValue: maxActivity,
-                          color: const Color(0xFF6A4CE0),
+                          color: StitchTheme.primary,
                           isDark: isDark,
                         ),
                         _buildChartBar(
                           label: "Evening",
                           value: eveningCount,
                           maxValue: maxActivity,
-                          color: StitchTheme.secondary,
+                          color: const Color(0xFF8B5CF6),
                           isDark: isDark,
                         ),
                         _buildChartBar(
                           label: "Night",
                           value: nightCount,
                           maxValue: maxActivity,
-                          color: const Color(0xFFA23FE0),
+                          color: const Color(0xFFC084FC),
                           isDark: isDark,
                         ),
                       ],
@@ -321,7 +312,7 @@ class MemoryInsightsScreen extends StatelessWidget {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 100),
             ],
           ),
         ),
@@ -348,7 +339,14 @@ class MemoryInsightsScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: StitchTheme.outline)),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 12),
           Text(
             value,
@@ -359,7 +357,13 @@ class MemoryInsightsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(fontSize: 12, color: StitchTheme.outline)),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -392,20 +396,30 @@ class MemoryInsightsScreen extends StatelessWidget {
           height: barHeight > 4 ? barHeight : 4,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [color, color.withValues(alpha: 0.5)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+              colors: [
+                color.withValues(alpha: 0.3),
+                color,
+              ],
             ),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: StitchTheme.outline,
+            color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
           ),
         ),
       ],

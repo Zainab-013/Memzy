@@ -5,6 +5,7 @@ import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/chat.dart';
 import '../theme/stitch_theme.dart';
+import '../widgets/passcode_view.dart';
 import 'conversation_screen.dart';
 import 'archived_chats_screen.dart';
 import 'memory_insights_screen.dart';
@@ -37,9 +38,19 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
     final activeChats = chatProvider.chats.where((c) => !c.isArchived).toList();
     final displayedChats = _searchQuery.isEmpty
         ? activeChats
-        : activeChats
-            .where((c) => c.title.toLowerCase().contains(_searchQuery.toLowerCase()))
-            .toList();
+        : activeChats.where((c) {
+            final query = _searchQuery.toLowerCase();
+            if (c.title.toLowerCase().contains(query)) return true;
+            
+            if (!c.isLocked) {
+              final messages = chatProvider.getMessagesForChat(c.id);
+              return messages.any((m) =>
+                  m.text.toLowerCase().contains(query) ||
+                  (m.fileName ?? '').toLowerCase().contains(query) ||
+                  m.type.toLowerCase().contains(query));
+            }
+            return false;
+          }).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -64,15 +75,19 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
               )
             : Row(
                 children: [
-                  Icon(
-                    Icons.memory,
-                    color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.asset(
+                      'assets/icon/app_icon.png',
+                      width: 24,
+                      height: 24,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Memzy',
                     style: TextStyle(
-                      fontFamily: 'Geist',
                       fontWeight: FontWeight.bold,
                       color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
                     ),
@@ -83,7 +98,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
           IconButton(
             icon: Icon(
               _isSearching ? Icons.close : Icons.search,
-              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+              color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
             ),
             onPressed: () {
               setState(() {
@@ -141,7 +156,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
           PopupMenuButton<String>(
             icon: Icon(
               Icons.more_vert,
-              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+              color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
             ),
             onSelected: (value) {
               if (value == 'archived') {
@@ -151,6 +166,39 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                     builder: (context) => const ArchivedChatsScreen(),
                   ),
                 );
+              } else if (value == 'change_passcode') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PasscodeView(
+                      mode: 'verify',
+                      title: "Verify Old Passcode",
+                      onSuccess: (passcode) {
+                        Navigator.pop(context); // pop verify screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PasscodeView(
+                              mode: 'create',
+                              title: "Enter New Passcode",
+                              onSuccess: (newPasscode) async {
+                                await chatProvider.setPasscode(newPasscode);
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Passcode changed successfully')),
+                                  );
+                                }
+                              },
+                              onCancel: () => Navigator.pop(context),
+                            ),
+                          ),
+                        );
+                      },
+                      onCancel: () => Navigator.pop(context),
+                    ),
+                  ),
+                );
               }
             },
             itemBuilder: (context) => [
@@ -158,6 +206,11 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                 value: 'archived',
                 child: Text('Archived Chats'),
               ),
+              if (chatProvider.isPasscodeSet)
+                const PopupMenuItem(
+                  value: 'change_passcode',
+                  child: Text('Change Passcode'),
+                ),
             ],
           ),
         ],
@@ -174,7 +227,6 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                 Text(
                   'Your Memories',
                   style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                        fontFamily: 'Geist',
                         color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
                       ),
                 ),
@@ -182,7 +234,6 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                 Text(
                   'Intelligent conversations with your past and future.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'Geist',
                         color: isDark
                             ? StitchTheme.darkOnSurfaceVariant
                             : StitchTheme.onSurfaceVariant,
@@ -218,89 +269,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                           return _buildChatCard(context, chat, isDark, chatProvider);
                         },
                       ),
-
-                const SizedBox(height: 24),
-
-                // Memory Insights card (Amethyst Container)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      colors: [StitchTheme.primary, StitchTheme.secondary],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Memory Insights',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "You've saved ${chatProvider.reminders.length} important reminders. Keep going!",
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: StitchTheme.primary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                            ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const MemoryInsightsScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              'Explore Trends',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Positioned(
-                        right: -16,
-                        bottom: -16,
-                        child: Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.1),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 100),
               ],
             ),
           ),
@@ -314,25 +283,20 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
     final messages = provider.getMessagesForChat(chat.id);
     final hasMessages = messages.isNotEmpty;
     final lastMsg = hasMessages ? messages.last : null;
-    final lastMsgText = lastMsg != null
-        ? (lastMsg.type == 'text' ? lastMsg.text : '📎 Attachment: ${lastMsg.fileName ?? "File"}')
-        : "No messages yet";
+    final lastMsgText = chat.isLocked
+        ? "Locked • Tap to unlock"
+        : (lastMsg != null
+            ? (lastMsg.type == 'text' ? lastMsg.text : '📎 Attachment: ${lastMsg.fileName ?? "File"}')
+            : "No messages yet");
 
-    final lastMsgTime = lastMsg != null
-        ? DateFormat('h:mm a').format(lastMsg.timestamp)
-        : DateFormat('h:mm a').format(chat.createdAt);
+    final lastMsgTime = chat.isLocked
+        ? ""
+        : (lastMsg != null
+            ? DateFormat('h:mm a').format(lastMsg.timestamp)
+            : DateFormat('h:mm a').format(chat.createdAt));
 
-    final avatarBgColor = chat.title == "Placement Prep"
-        ? StitchTheme.primaryFixed
-        : (chat.title == "College Notes"
-            ? StitchTheme.secondaryFixed
-            : StitchTheme.tertiaryFixedDim);
-
-    final avatarIconColor = chat.title == "Placement Prep"
-        ? StitchTheme.onPrimaryFixed
-        : (chat.title == "College Notes"
-            ? StitchTheme.onSecondaryFixed
-            : StitchTheme.onTertiaryFixedVariant);
+    final avatarBgColor = StitchTheme.getAvatarBgColor(chat.title, isDark);
+    final avatarIconColor = StitchTheme.getAvatarIconColor(chat.title, isDark);
 
     return Dismissible(
       key: Key(chat.id),
@@ -398,17 +362,17 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
-          border: chat.isPinned
-              ? Border.all(
-                  color: isDark ? StitchTheme.secondaryFixedDim : StitchTheme.secondary,
-                  width: 1.5,
-                )
-              : null,
+          border: Border.all(
+            color: isDark
+                ? (chat.isPinned ? StitchTheme.primary.withValues(alpha: 0.6) : const Color(0xFF28243E))
+                : (chat.isPinned ? StitchTheme.primary.withValues(alpha: 0.4) : const Color(0xFFECE9FC)),
+            width: chat.isPinned ? 1.5 : 1.0,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0x0C6366F1),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -436,12 +400,13 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: avatarBgColor,
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: StitchTheme.getAvatarGradient(chat.title, isDark),
                     ),
                     child: Icon(
-                      IconData(chat.iconCode, fontFamily: 'MaterialIcons'),
+                      StitchTheme.getChatIcon(chat.iconCode),
                       color: avatarIconColor,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -455,24 +420,39 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
-                              child: Text(
-                                chat.title,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      chat.title,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (chat.isLocked) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      Icons.lock,
+                                      size: 14,
+                                      color: StitchTheme.primary,
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              lastMsgTime,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                            if (lastMsgTime.isNotEmpty)
+                              Text(
+                                lastMsgTime,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -482,7 +462,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                               Icon(
                                 Icons.push_pin,
                                 size: 12,
-                                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 4),
                             ],
@@ -511,6 +491,75 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
         ),
       ),
     );
+  }
+
+  void _toggleChatLock(BuildContext context, Chat chat, ChatProvider provider) {
+    if (chat.isLocked) {
+      // Unlock flow
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PasscodeView(
+            mode: 'verify',
+            title: "Unlock Chat",
+            onSuccess: (passcode) async {
+              Navigator.pop(context);
+              await provider.toggleLockChat(chat.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Chat unlocked successfully')),
+                );
+              }
+            },
+            onCancel: () => Navigator.pop(context),
+          ),
+        ),
+      );
+    } else {
+      // Lock flow
+      if (!provider.isPasscodeSet) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PasscodeView(
+              mode: 'create',
+              title: "Set Passcode",
+              onSuccess: (passcode) async {
+                await provider.setPasscode(passcode);
+                await provider.toggleLockChat(chat.id);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Passcode set and chat locked')),
+                  );
+                }
+              },
+              onCancel: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PasscodeView(
+              mode: 'verify',
+              title: "Lock Chat",
+              onSuccess: (passcode) async {
+                Navigator.pop(context);
+                await provider.toggleLockChat(chat.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Chat locked successfully')),
+                  );
+                }
+              },
+              onCancel: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _showChatOptionsSheet(BuildContext context, Chat chat, ChatProvider provider, bool isDark) {
@@ -560,6 +609,14 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                       ),
                     );
                   }
+                },
+              ),
+              ListTile(
+                leading: Icon(chat.isLocked ? Icons.lock_open : Icons.lock, color: StitchTheme.primary),
+                title: Text(chat.isLocked ? 'Unlock Chat' : 'Lock Chat'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _toggleChatLock(context, chat, provider);
                 },
               ),
               ListTile(

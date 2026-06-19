@@ -7,6 +7,7 @@ class DatabaseService {
   static const String _chatsBoxName = 'chats';
   static const String _messagesBoxName = 'messages';
   static const String _remindersBoxName = 'reminders';
+  static const String _settingsBoxName = 'settings';
 
   static Future<void> init() async {
     await Hive.initFlutter();
@@ -26,15 +27,18 @@ class DatabaseService {
     await Hive.openBox<Chat>(_chatsBoxName);
     await Hive.openBox<Message>(_messagesBoxName);
     await Hive.openBox<Reminder>(_remindersBoxName);
+    await Hive.openBox(_settingsBoxName);
   }
 
   static Box<Chat> get chatsBox => Hive.box<Chat>(_chatsBoxName);
   static Box<Message> get messagesBox => Hive.box<Message>(_messagesBoxName);
   static Box<Reminder> get remindersBox => Hive.box<Reminder>(_remindersBoxName);
+  static Box get settingsBox => Hive.box(_settingsBoxName);
 
   static Future<void> clearAll() async {
     await chatsBox.clear();
     await messagesBox.clear();
     await remindersBox.clear();
+    await settingsBox.clear();
   }
 }

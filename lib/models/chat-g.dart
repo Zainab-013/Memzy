@@ -22,6 +22,7 @@ class ChatAdapter extends TypeAdapter<Chat> {
       iconCode: fields[2] as int,
       isPinned: fields[3] as bool,
       isArchived: fields[4] as bool,
+      isLocked: fields[6] as bool? ?? false,
       createdAt: fields[5] as DateTime,
     );
   }
@@ -29,7 +30,7 @@ class ChatAdapter extends TypeAdapter<Chat> {
   @override
   void write(BinaryWriter writer, Chat obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class ChatAdapter extends TypeAdapter<Chat> {
       ..writeByte(4)
       ..write(obj.isArchived)
       ..writeByte(5)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(6)
+      ..write(obj.isLocked);
   }
 
   @override

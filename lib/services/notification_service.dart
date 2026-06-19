@@ -1,7 +1,6 @@
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:provider/provider.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -59,13 +58,13 @@ class NotificationService {
   static Future<void> init() async {
     tz.initializeTimeZones();
     
-    // Set local location dynamically from device timezone, fallback if error
     try {
-      final String timeZoneName = DateTime.now().timeZoneName;
+      final timezoneInfo = await FlutterTimezone.getLocalTimezone();
+      final String timeZoneName = timezoneInfo.identifier;
       tz.setLocalLocation(tz.getLocation(timeZoneName));
       debugPrint("Local timezone successfully set to: $timeZoneName");
     } catch (e) {
-      debugPrint("Failed to set timezone from timeZoneName ($e). Falling back to Asia/Kolkata.");
+      debugPrint("Failed to set timezone using FlutterTimezone ($e). Falling back to Asia/Kolkata.");
       try {
         tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
       } catch (_) {
@@ -74,7 +73,7 @@ class NotificationService {
     }
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('launcher_icon');
 
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
@@ -150,6 +149,7 @@ class NotificationService {
     }
   }
 
+
   static Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -164,44 +164,24 @@ class NotificationService {
     }
 
     final tz.TZDateTime tzScheduledTime = tz.TZDateTime.from(
-      scheduledTime.toUtc(),
-      tz.UTC,
+      scheduledTime,
+      tz.local,
     );
 
-    debugPrint("Scheduling notification: ID: $id, Title: '$title', Time: $tzScheduledTime (UTC), Milliseconds: ${tzScheduledTime.millisecondsSinceEpoch}, isAlarm: $isAlarm");
+    debugPrint("Scheduling notification: ID: $id, Title: '$title', Time: $tzScheduledTime (Local), Milliseconds: ${tzScheduledTime.millisecondsSinceEpoch}, isAlarm: $isAlarm");
 
-    final AndroidNotificationDetails androidDetails = isAlarm
-        ? AndroidNotificationDetails(
-            'memzy_alarm_reminders_channel_v6',
-            'Memzy Alarm Reminders',
-            channelDescription: 'Channel for high priority, alarm-like reminders',
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: true,
-            enableVibration: true,
-            vibrationPattern: Int64List.fromList(<int>[0, 1000, 500, 1000, 500, 1000, 500, 1000]),
-            audioAttributesUsage: AudioAttributesUsage.alarm,
-            additionalFlags: Int32List.fromList(<int>[4]), // FLAG_INSISTENT loops sound and vibration until dismissed
-            actions: <AndroidNotificationAction>[
-              const AndroidNotificationAction(
-                'stop_alarm',
-                'Stop',
-                cancelNotification: true,
-                showsUserInterface: false,
-              ),
-            ],
-          )
-        : const AndroidNotificationDetails(
-            'memzy_normal_reminders_channel_v6',
-            'Memzy Standard Reminders',
-            channelDescription: 'Channel for standard reminder warnings',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            playSound: true,
-            enableVibration: true,
-          );
 
-    final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+    final AndroidNotificationDetails androidDetails = const AndroidNotificationDetails(
+      'memzy_reminders_channel_v8',
+      'Memzy Reminders',
+      channelDescription: 'Channel for all Memzy reminder notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    final DarwinNotificationDetails iosDetails = const DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,

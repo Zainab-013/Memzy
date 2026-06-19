@@ -21,7 +21,7 @@ class ReminderAdapter extends TypeAdapter<Reminder> {
       chatId: fields[1] as String,
       messageId: fields[2] as String,
       content: fields[3] as String,
-      time: fields[4] as DateTime,
+      time: fields[4] as DateTime?,
       isCompleted: fields[5] as bool,
       createdAt: fields[6] as DateTime,
     );

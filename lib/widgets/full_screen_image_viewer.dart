@@ -33,6 +33,18 @@ class FullScreenImageViewer extends StatelessWidget {
                       ? Image.file(
                           File(imagePath!),
                           fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 200,
+                              color: Colors.grey.shade900,
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.broken_image,
+                                size: 64,
+                                color: Colors.white38,
+                              ),
+                            );
+                          },
                         )
                       : Container(
                           height: 200,
@@ -68,7 +80,7 @@ class FullScreenImageViewer extends StatelessWidget {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        icon: const Icon(Icons.chevron_left, color: Colors.white),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 8),

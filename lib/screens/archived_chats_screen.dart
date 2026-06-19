@@ -21,9 +21,12 @@ class ArchivedChatsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 48,
+        titleSpacing: 0,
         title: const Text('Archived Chats'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.chevron_left),
+          padding: EdgeInsets.zero,
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -38,13 +41,13 @@ class ArchivedChatsScreen extends StatelessWidget {
                       Icon(
                         Icons.archive_outlined,
                         size: 48,
-                        color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                        color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         "No archived chats.",
                         style: TextStyle(
-                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline,
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -77,17 +80,8 @@ class ArchivedChatsScreen extends StatelessWidget {
         ? DateFormat('h:mm a').format(lastMsg.timestamp)
         : DateFormat('h:mm a').format(chat.createdAt);
 
-    final avatarBgColor = chat.title == "Placement Prep"
-        ? StitchTheme.primaryFixed
-        : (chat.title == "College Notes"
-            ? StitchTheme.secondaryFixed
-            : StitchTheme.tertiaryFixedDim);
-
-    final avatarIconColor = chat.title == "Placement Prep"
-        ? StitchTheme.onPrimaryFixed
-        : (chat.title == "College Notes"
-            ? StitchTheme.onSecondaryFixed
-            : StitchTheme.onTertiaryFixedVariant);
+    final avatarBgColor = StitchTheme.getAvatarBgColor(chat.title, isDark);
+    final avatarIconColor = StitchTheme.getAvatarIconColor(chat.title, isDark);
 
     return Dismissible(
       key: Key(chat.id),
@@ -153,11 +147,15 @@ class ArchivedChatsScreen extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
+          border: Border.all(
+            color: isDark ? const Color(0xFF28243E) : const Color(0xFFECE9FC),
+            width: 1.0,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0x0C6366F1),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -184,12 +182,13 @@ class ArchivedChatsScreen extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: avatarBgColor,
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: StitchTheme.getAvatarGradient(chat.title, isDark),
                     ),
                     child: Icon(
-                      IconData(chat.iconCode, fontFamily: 'MaterialIcons'),
+                      StitchTheme.getChatIcon(chat.iconCode),
                       color: avatarIconColor,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -216,7 +215,7 @@ class ArchivedChatsScreen extends StatelessWidget {
                               lastMsgTime,
                               style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.outline),
+                                  color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
                             ),
                           ],
                         ),

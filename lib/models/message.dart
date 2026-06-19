@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 
-part 'message.g.dart';
+part 'message-g.dart';
 
 @HiveType(typeId: 1)
 class Message extends HiveObject {
@@ -11,7 +11,7 @@ class Message extends HiveObject {
   final String chatId;
 
   @HiveField(2)
-  final String text;
+  String text;
 
   @HiveField(3)
   final String sender; // 'user' or 'system'
@@ -34,6 +34,12 @@ class Message extends HiveObject {
   @HiveField(9)
   final int? fileSize;
 
+  @HiveField(10)
+  bool isEdited;
+
+  @HiveField(11)
+  bool? isPinned;
+
   Message({
     required this.id,
     required this.chatId,
@@ -45,5 +51,7 @@ class Message extends HiveObject {
     this.fileLocalPath,
     this.fileName,
     this.fileSize,
+    this.isEdited = false,
+    this.isPinned = false,
   });
 }
