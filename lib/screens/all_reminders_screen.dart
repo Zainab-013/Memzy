@@ -668,99 +668,98 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Icon(
-                              icon,
-                              size: 13,
-                              color: isOverdue
-                                  ? StitchTheme.secondary
-                                  : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  icon,
+                                  size: 13,
+                                  color: isOverdue
+                                      ? StitchTheme.secondary
+                                      : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  formattedTime,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
+                                    color: isOverdue
+                                        ? StitchTheme.secondary
+                                        : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              formattedTime,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
-                                color: isOverdue
-                                    ? StitchTheme.secondary
-                                    : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
+                            if (chat != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1B1838) : const Color(0xFFEEF2F6),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: isDark ? const Color(0xFF28243E) : const Color(0xFFE2E8F0),
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      StitchTheme.getChatIcon(chat.iconCode),
+                                      size: 10,
+                                      color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      chat.title,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
                           ],
                         ),
-                        if (isOverdue || chat != null) ...[
+                        if (isOverdue) ...[
                           const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              if (isOverdue)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF4C0519) : const Color(0xFFFFE4E6),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: isDark ? const Color(0xFFBE123C) : const Color(0xFFFECDD3),
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.warning_amber_rounded,
-                                        size: 10,
-                                        color: isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "Overdue",
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48),
-                                        ),
-                                      ),
-                                    ],
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF4C0519) : const Color(0xFFFFE4E6),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFFBE123C) : const Color(0xFFFECDD3),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 10,
+                                  color: isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Overdue",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48),
                                   ),
                                 ),
-                              if (chat != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF1B1838) : const Color(0xFFEEF2F6),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: isDark ? const Color(0xFF28243E) : const Color(0xFFE2E8F0),
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        StitchTheme.getChatIcon(chat.iconCode),
-                                        size: 10,
-                                        color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        chat.title,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w500,
-                                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ],

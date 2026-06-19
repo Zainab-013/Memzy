@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/chat.dart';
+import '../models/message.dart';
 import '../theme/stitch_theme.dart';
 import '../widgets/passcode_view.dart';
 import 'conversation_screen.dart';
@@ -34,23 +35,47 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
 
-    // Filter active (non-archived) chats by search query
+    // Filter active (non-archived) chats
     final activeChats = chatProvider.chats.where((c) => !c.isArchived).toList();
-    final displayedChats = _searchQuery.isEmpty
-        ? activeChats
-        : activeChats.where((c) {
-            final query = _searchQuery.toLowerCase();
-            if (c.title.toLowerCase().contains(query)) return true;
-            
-            if (!c.isLocked) {
-              final messages = chatProvider.getMessagesForChat(c.id);
-              return messages.any((m) =>
-                  m.text.toLowerCase().contains(query) ||
-                  (m.fileName ?? '').toLowerCase().contains(query) ||
-                  m.type.toLowerCase().contains(query));
+
+    // Global search lists
+    final List<Chat> matchingChats = [];
+    final List<Map<String, dynamic>> matchingMessages = [];
+    final List<Map<String, dynamic>> matchingFiles = [];
+
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      for (final chat in activeChats) {
+        if (chat.title.toLowerCase().contains(query)) {
+          matchingChats.add(chat);
+        }
+
+        if (!chat.isLocked) {
+          final messages = chatProvider.getMessagesForChat(chat.id);
+          for (final msg in messages) {
+            final isFile = msg.type == 'image' || msg.type == 'pdf' || msg.type == 'document';
+            final fileName = msg.fileName ?? '';
+            final text = msg.text;
+
+            if (isFile) {
+              if (fileName.toLowerCase().contains(query) || text.toLowerCase().contains(query)) {
+                matchingFiles.add({
+                  'chat': chat,
+                  'message': msg,
+                });
+              }
+            } else if (msg.type == 'text') {
+              if (text.toLowerCase().contains(query)) {
+                matchingMessages.add({
+                  'chat': chat,
+                  'message': msg,
+                });
+              }
             }
-            return false;
-          }).toList();
+          }
+        }
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -61,7 +86,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                 controller: _searchController,
                 autofocus: true,
                 decoration: const InputDecoration(
-                  hintText: 'Search chats...',
+                  hintText: 'Search chats, messages, files...',
                   border: InputBorder.none,
                 ),
                 style: TextStyle(
@@ -241,34 +266,131 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Chat List
-                displayedChats.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Text(
-                            _searchQuery.isEmpty
-                                ? "No memory threads yet. Tap '+' to create one."
-                                : "No matching chats found.",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: isDark
-                                  ? StitchTheme.darkOnSurfaceVariant
-                                  : StitchTheme.onSurfaceVariant,
+                // Chat List or Search Results
+                if (_searchQuery.isEmpty) ...[
+                  activeChats.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Text(
+                              "No memory threads yet. Tap '+' to create one.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isDark
+                                    ? StitchTheme.darkOnSurfaceVariant
+                                    : StitchTheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: activeChats.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final chat = activeChats[index];
+                            return _buildChatCard(context, chat, isDark, chatProvider);
+                          },
                         ),
-                      )
-                    : ListView.separated(
+                ] else ...[
+                  if (matchingChats.isEmpty && matchingMessages.isEmpty && matchingFiles.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Text(
+                          "No matching chats, messages, or files found.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isDark
+                                ? StitchTheme.darkOnSurfaceVariant
+                                : StitchTheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    )
+                  else ...[
+                    // Matching Chats Section
+                    if (matchingChats.isNotEmpty) ...[
+                      Text(
+                        'Chats (${matchingChats.length})',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ListView.separated(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: displayedChats.length,
+                        itemCount: matchingChats.length,
                         separatorBuilder: (context, index) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
-                          final chat = displayedChats[index];
+                          final chat = matchingChats[index];
                           return _buildChatCard(context, chat, isDark, chatProvider);
                         },
                       ),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Matching Messages Section
+                    if (matchingMessages.isNotEmpty) ...[
+                      Text(
+                        'Messages (${matchingMessages.length})',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: matchingMessages.length,
+                        itemBuilder: (context, index) {
+                          final item = matchingMessages[index];
+                          return _buildMessageResultCard(
+                            context,
+                            item['chat'] as Chat,
+                            item['message'] as Message,
+                            isDark,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Matching Files Section
+                    if (matchingFiles.isNotEmpty) ...[
+                      Text(
+                        'Files & Documents (${matchingFiles.length})',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: matchingFiles.length,
+                        itemBuilder: (context, index) {
+                          final item = matchingFiles[index];
+                          return _buildFileResultCard(
+                            context,
+                            item['chat'] as Chat,
+                            item['message'] as Message,
+                            isDark,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ],
+                ],
                 const SizedBox(height: 100),
               ],
             ),
@@ -659,6 +781,206 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMessageResultCard(BuildContext context, Chat chat, Message msg, bool isDark) {
+    final timeStr = DateFormat('MMM d, h:mm a').format(msg.timestamp);
+    final isMe = msg.sender == 'user';
+    final senderPrefix = isMe ? 'Me: ' : 'System: ';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
+        border: Border.all(
+          color: isDark ? const Color(0xFF28243E) : const Color(0xFFECE9FC),
+          width: 1.0,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ConversationScreen(chatId: chat.id),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: StitchTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.chat_bubble_outline, color: StitchTheme.primary, size: 20),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            chat.title,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                            ),
+                          ),
+                          Text(
+                            timeStr,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: senderPrefix,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(
+                              text: msg.text,
+                            ),
+                          ],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFileResultCard(BuildContext context, Chat chat, Message msg, bool isDark) {
+    final timeStr = DateFormat('MMM d, h:mm a').format(msg.timestamp);
+    final isPdf = msg.type == 'pdf';
+    final isImage = msg.type == 'image';
+    final icon = isImage
+        ? Icons.image
+        : (isPdf ? Icons.picture_as_pdf : Icons.insert_drive_file);
+    final iconColor = isImage
+        ? StitchTheme.secondary
+        : (isPdf ? Colors.red : Colors.blue);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
+        border: Border.all(
+          color: isDark ? const Color(0xFF28243E) : const Color(0xFFECE9FC),
+          width: 1.0,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ConversationScreen(chatId: chat.id),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            chat.title,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                            ),
+                          ),
+                          Text(
+                            timeStr,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        msg.fileName ?? (isImage ? 'image.jpg' : 'Document'),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (msg.fileSize != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          "${(msg.fileSize! / (1024 * 1024)).toStringAsFixed(2)} MB",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

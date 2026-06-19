@@ -393,19 +393,13 @@ class AboutUsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded, color: primaryAccent),
-                        const SizedBox(width: 10),
-                        Text(
-                          'About Memzy',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: titleColor,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'About Memzy',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: titleColor,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -413,6 +407,51 @@ class AboutUsScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13.5,
                         height: 1.5,
+                        color: subtitleColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Quote Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: cardBgColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Your mind is for having ideas, not holding them.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w500,
+                        color: titleColor,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '— David Allen',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                         color: subtitleColor,
                       ),
                     ),

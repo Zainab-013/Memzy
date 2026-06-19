@@ -1016,26 +1016,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
 
     if (_isSelectionMode) {
-      final checkbox = GestureDetector(
-        onTap: () {
-          setState(() {
-            if (isSelected) {
-              _selectedMessageIds.remove(msg.id);
-            } else {
-              _selectedMessageIds.add(msg.id);
-            }
-          });
-        },
-        child: Padding(
-          padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 20.0),
-          child: Icon(
-            isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: StitchTheme.primary,
-            size: 24,
-          ),
-        ),
-      );
-
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -1053,17 +1033,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
               ? StitchTheme.primary.withValues(alpha: 0.15)
               : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: isMe
-                ? [
-                    Expanded(child: bubbleBody),
-                    checkbox,
-                  ]
-                : [
-                    checkbox,
-                    Expanded(child: bubbleBody),
-                  ],
-          ),
+          child: bubbleBody,
         ),
       );
     }
