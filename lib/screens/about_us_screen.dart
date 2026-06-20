@@ -357,7 +357,7 @@ class AboutUsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Version 1.0.0 (Offline-First)',
+                      'Version 1.0.0 ',
                       style: TextStyle(
                         fontSize: 13,
                         color: subtitleColor,
