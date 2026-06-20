@@ -17,8 +17,8 @@ class ReminderParser {
     final now = DateTime(rawNow.year, rawNow.month, rawNow.day, rawNow.hour, rawNow.minute);
 
     if (requireRemindKeyword) {
-      // First check if the word "remind", "reminder", or "reminders" exists (case-insensitive)
-      final remindRegExp = RegExp(r'\b(remind|reminder|reminders)\b', caseSensitive: false);
+      // First check if the word "remind", "reminder", "reminders", "notify", "notification", or "notifications" exists (case-insensitive)
+      final remindRegExp = RegExp(r'\b(remind|reminder|reminders|notify|notification|notifications)\b', caseSensitive: false);
       if (!remindRegExp.hasMatch(text)) {
         return null;
       }
@@ -323,7 +323,7 @@ class ReminderParser {
         reminderTime = reminderTime.add(const Duration(days: 1));
       }
     } else {
-      // Fallback: If "remind" exists but no time expression matched, default to 1 hour from now
+      // Fallback: If trigger keyword exists but no time expression matched, default to 1 hour from now
       reminderTime = now.add(const Duration(hours: 1));
       matchedString = '';
     }
@@ -336,16 +336,16 @@ class ReminderParser {
       }
     }
 
-    // Remove the word "remind" and common connecting words/prepositions
-    // e.g. "remind me to", "remind me about", "set reminder for", etc.
+    // Remove the word "remind"/"notify" and common connecting words/prepositions
+    // e.g. "remind me to", "notify me to", "remind me about", "notify me about", "set reminder for", "set notification for", etc.
     final cleanTriggerRegExp = RegExp(
-      r'\b(remind\s+me\s+(?:to|about|of|for|on)\s+|remind\s+(?:to|about|of|for|on)\s+|set\s+(?:a\s+)?reminder\s+(?:to|about|of|for|on|at)\s+|reminder\s+(?:to|about|of|for|on)\s+|remind\s+me\s+|remind\s+me\b|set\s+(?:a\s+)?reminder\s+|reminder\s+|remind\s+|reminder\b|remind\b)',
+      r'\b((?:remind|notify)\s+me\s+(?:to|about|of|for|on)\s+|(?:remind|notify)\s+(?:to|about|of|for|on)\s+|set\s+(?:a\s+)?(?:reminder|notification)\s+(?:to|about|of|for|on|at)\s+|(?:reminder|notification)\s+(?:to|about|of|for|on)\s+|(?:remind|notify)\s+me\s+|(?:remind|notify)\s+me\b|set\s+(?:a\s+)?(?:reminder|notification)\s+|(?:reminder|notification)\s+|(?:remind|notify)\s+|(?:reminder|notification)\b|(?:remind|notify)\b)',
       caseSensitive: false,
     );
     content = content.replaceFirst(cleanTriggerRegExp, '');
 
-    // Double check if any isolated "remind" or "reminder" remains
-    content = content.replaceAll(RegExp(r'\b(remind|reminder|reminders)\b', caseSensitive: false), '');
+    // Double check if any isolated "remind", "reminder", "reminders", "notify", "notification", or "notifications" remains
+    content = content.replaceAll(RegExp(r'\b(remind|reminder|reminders|notify|notification|notifications)\b', caseSensitive: false), '');
 
     content = content.trim();
 

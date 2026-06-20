@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -9,7 +10,7 @@ import '../theme/stitch_theme.dart';
 import '../widgets/passcode_view.dart';
 import 'conversation_screen.dart';
 import 'archived_chats_screen.dart';
-import 'memory_insights_screen.dart';
+import '../services/notification_service.dart';
 
 class ChatsHomeScreen extends StatefulWidget {
   const ChatsHomeScreen({super.key});
@@ -22,6 +23,121 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
   String _searchQuery = "";
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkBatteryOptimization();
+    });
+  }
+
+  Future<void> _checkBatteryOptimization() async {
+    if (!Platform.isAndroid) return;
+    
+    final bool isIgnoring = await NotificationService.isIgnoringBatteryOptimizations();
+    if (!isIgnoring && mounted) {
+      _showBatteryOptimizationDialog();
+    }
+  }
+
+  void _showBatteryOptimizationDialog() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Icon(
+                Icons.alarm_on_rounded,
+                color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Timely Reminders',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'To make sure your reminders deliver exactly on time, Memzy needs battery optimization to be turned off.',
+                style: TextStyle(
+                  color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'On the next screen, change the setting to "Don\'t optimize" or "Unrestricted".',
+                        style: TextStyle(fontSize: 13, height: 1.3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Later',
+                style: TextStyle(
+                  color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: StitchTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                elevation: 2,
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await NotificationService.requestIgnoreBatteryOptimizations();
+              },
+              child: const Text('Configure Now', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -417,7 +533,6 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
             ? DateFormat('h:mm a').format(lastMsg.timestamp)
             : DateFormat('h:mm a').format(chat.createdAt));
 
-    final avatarBgColor = StitchTheme.getAvatarBgColor(chat.title, isDark);
     final avatarIconColor = StitchTheme.getAvatarIconColor(chat.title, isDark);
 
     return Dismissible(
@@ -492,7 +607,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0x0C6366F1),
+              color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0x0C45346A),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),
@@ -734,6 +849,14 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.edit, color: Colors.blue),
+                title: const Text('Rename Chat'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showRenameChatDialog(context, chat, provider);
+                },
+              ),
+              ListTile(
                 leading: Icon(chat.isLocked ? Icons.lock_open : Icons.lock, color: StitchTheme.primary),
                 title: Text(chat.isLocked ? 'Unlock Chat' : 'Lock Chat'),
                 onTap: () {
@@ -779,6 +902,73 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
               const SizedBox(height: 8),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  void _showRenameChatDialog(BuildContext context, Chat chat, ChatProvider provider) {
+    final controller = TextEditingController(text: chat.title);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (context) {
+        final highlightColor = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
+        return AlertDialog(
+          backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Text('Rename Memory Thread', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: 'Thread Title',
+              labelStyle: TextStyle(
+                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: highlightColor),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            style: TextStyle(
+              color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: StitchTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+              ),
+              onPressed: () async {
+                final newTitle = controller.text.trim();
+                if (newTitle.isNotEmpty && newTitle != chat.title) {
+                  await provider.renameChat(chat.id, newTitle);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Chat renamed successfully'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                } else {
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
         );
       },
     );

@@ -440,7 +440,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                   ),
                   trailing: Switch.adaptive(
                     value: chat.isLocked,
-                    activeColor: StitchTheme.primary,
+                    activeThumbColor: StitchTheme.primary,
                     onChanged: (bool value) {
                       _toggleChatLock(context, chat, chatProvider);
                     },

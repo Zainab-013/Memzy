@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +10,8 @@ import '../providers/chat_provider.dart';
 import '../screens/conversation_screen.dart';
 
 class NotificationService {
+  static const MethodChannel _alarmChannel = MethodChannel('com.stitch.memzy/alarm');
+
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
@@ -147,6 +151,46 @@ class NotificationService {
     } catch (e) {
       debugPrint("Error requesting iOS permissions: $e");
     }
+
+    try {
+      if (Platform.isAndroid) {
+        // Check & Request Exact Alarm Permission if not granted
+        final bool canSchedule = await _alarmChannel.invokeMethod<bool>('canScheduleExactAlarms') ?? true;
+        if (!canSchedule) {
+          await _alarmChannel.invokeMethod('requestExactAlarmPermission');
+        }
+      }
+    } catch (e) {
+      debugPrint("Error requesting exact alarm permission via native bridge: $e");
+    }
+  }
+
+  static Future<bool> isIgnoringBatteryOptimizations() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      return await _alarmChannel.invokeMethod<bool>('isIgnoringBatteryOptimizations') ?? true;
+    } catch (e) {
+      debugPrint("Error checking battery optimization status: $e");
+      return true;
+    }
+  }
+
+  static Future<void> requestIgnoreBatteryOptimizations() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _alarmChannel.invokeMethod('requestIgnoreBatteryOptimizations');
+    } catch (e) {
+      debugPrint("Error requesting battery optimization exemption: $e");
+    }
+  }
+
+  static Future<void> openAppInfoSettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _alarmChannel.invokeMethod('openAppInfoSettings');
+    } catch (e) {
+      debugPrint("Error opening app info settings: $e");
+    }
   }
 
 
@@ -176,9 +220,10 @@ class NotificationService {
       'Memzy Reminders',
       channelDescription: 'Channel for all Memzy reminder notifications',
       importance: Importance.max,
-      priority: Priority.high,
+      priority: Priority.max,
       playSound: true,
       enableVibration: true,
+      category: AndroidNotificationCategory.alarm,
     );
 
     final DarwinNotificationDetails iosDetails = const DarwinNotificationDetails(
@@ -192,6 +237,21 @@ class NotificationService {
       iOS: iosDetails,
     );
 
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        _notificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+            
+    bool canUseExact = false;
+    try {
+      if (androidImplementation != null) {
+        canUseExact = await androidImplementation.canScheduleExactNotifications() ?? false;
+      }
+    } catch (_) {}
+
+    final AndroidScheduleMode scheduleMode = canUseExact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
     try {
       await _notificationsPlugin.zonedSchedule(
         id,
@@ -199,14 +259,14 @@ class NotificationService {
         body,
         tzScheduledTime,
         details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: scheduleMode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: payload,
       );
-      debugPrint("Notification scheduled successfully!");
+      debugPrint("Notification scheduled successfully using $scheduleMode!");
     } catch (e) {
-      debugPrint("SecurityException or error scheduling exact alarm: $e. Falling back to inexact alarm.");
+      debugPrint("Error scheduling alarm: $e. Falling back to inexact alarm.");
       try {
         await _notificationsPlugin.zonedSchedule(
           id,

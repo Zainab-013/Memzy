@@ -114,9 +114,9 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
                     ),
                   );
 
-                  if (confirm == true && mounted) {
+                  if (confirm == true && context.mounted) {
                     await chatProvider.unstarAllMessages(widget.chatId);
-                    if (mounted) {
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('All messages unstarred'), duration: Duration(seconds: 1)),
                       );
@@ -260,7 +260,7 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
                   constraints: const BoxConstraints(),
                   onPressed: () async {
                     await provider.toggleStarMessage(msg.id);
-                    if (mounted) {
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Message unstarred'),

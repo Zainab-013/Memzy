@@ -615,7 +615,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                     try {
                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                     } catch (e) {
-                      if (mounted) {
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Could not launch link: $url')),
                         );
@@ -855,7 +855,7 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
                         try {
                           await launchUrl(uri, mode: LaunchMode.externalApplication);
                         } catch (e) {
-                          if (mounted) {
+                          if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Could not launch link: $url')),
                             );

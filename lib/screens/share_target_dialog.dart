@@ -95,7 +95,6 @@ class ShareTargetDialog extends StatelessWidget {
                 )
               : Column(
                   children: activeChats.map((chat) {
-                    final avatarBgColor = StitchTheme.getAvatarBgColor(chat.title, isDark);
                     final avatarIconColor = StitchTheme.getAvatarIconColor(chat.title, isDark);
 
                     return Column(

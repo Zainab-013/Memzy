@@ -157,5 +157,25 @@ void main() {
       expect(result.time.hour, equals(14));
       expect(result.time.minute, equals(0));
     });
+
+    test('Parse notify me simple time (10:00 PM)', () {
+      final msg = "Apply for internship. Notify me at 10:00 PM.";
+      final result = ReminderParser.parse(msg);
+
+      expect(result, isNotNull);
+      expect(result!.content, equals("Apply for internship"));
+      
+      expect(result.time.hour, equals(22));
+      expect(result.time.minute, equals(0));
+    });
+
+    test('Parse notification keyword instead of remind/reminder', () {
+      final msg = "Set a notification to call Dad tomorrow at 8 AM.";
+      final result = ReminderParser.parse(msg);
+
+      expect(result, isNotNull);
+      expect(result!.content, equals("call Dad"));
+      expect(result.time.hour, equals(8));
+    });
   });
 }

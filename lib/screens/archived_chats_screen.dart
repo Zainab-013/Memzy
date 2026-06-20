@@ -80,7 +80,6 @@ class ArchivedChatsScreen extends StatelessWidget {
         ? DateFormat('h:mm a').format(lastMsg.timestamp)
         : DateFormat('h:mm a').format(chat.createdAt);
 
-    final avatarBgColor = StitchTheme.getAvatarBgColor(chat.title, isDark);
     final avatarIconColor = StitchTheme.getAvatarIconColor(chat.title, isDark);
 
     return Dismissible(
@@ -153,7 +152,7 @@ class ArchivedChatsScreen extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0x0C6366F1),
+              color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0x0C45346A),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),

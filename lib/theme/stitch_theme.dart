@@ -3,9 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 class StitchTheme {
   // Colors (Light Theme - Modern Premium Indigo & Rose Accents)
-  static const Color primary = Color(0xFF6366F1); // Premium Indigo accent
+  static const Color primary = Color(0xFF45346A); // Premium Indigo Purple accent
   static const Color secondary = Color(0xFFEC4899); // Glowing Rose/Pink accent
-  static const Color background = Color(0xFFF9FAFB); // Clean soft light gray/white
+  static const Color background = Color(0xFFFFFFFF); // Pure white to match logo background
   static const Color surface = Color(0xFFFFFFFF);
   static const Color onSurface = Color(0xFF1F2937); // Deep charcoal/slate text
   static const Color onSurfaceVariant = Color(0xFF4B5563); // Cool system gray secondary text
@@ -17,10 +17,10 @@ class StitchTheme {
   static const Color outline = Color(0xFFE5E7EB);
   static const Color outlineVariant = Color(0xFFF3F4F6);
 
-  static const Color primaryFixed = Color(0xFFEEF2FF);
-  static const Color primaryFixedDim = Color(0xFFC7D2FE);
-  static const Color onPrimaryFixed = Color(0xFF3730A3); // Rich indigo for contrast
-  static const Color onPrimaryFixedVariant = Color(0xFF4F46E5);
+  static const Color primaryFixed = Color(0xFFF3EFF8);
+  static const Color primaryFixedDim = Color(0xFFC2B8D9);
+  static const Color onPrimaryFixed = Color(0xFF312450); // Rich dark purple for contrast
+  static const Color onPrimaryFixedVariant = Color(0xFF45346A);
 
   static const Color secondaryFixed = Color(0xFFFDF2F8);
   static const Color secondaryFixedDim = Color(0xFFFBCFE8);
@@ -49,11 +49,11 @@ class StitchTheme {
   static const Color darkSurfaceContainerHighest = Color(0xFF3E3E4F);
 
   // Pastel Message Bubble Background & Text Constants for high contrast
-  static const Color userBubbleLightBg = Color(0xFFE0E7FF); // Light pastel indigo
-  static const Color userBubbleDarkBg = Color(0xFFC7D2FE); // Glowing neon indigo
-  static const Color userBubbleLightBorder = Color(0xFFC7D2FE);
-  static const Color userBubbleDarkBorder = Color(0xFF818CF8);
-  static const Color userBubbleText = Color(0xFF1E1B4B); // Deep indigo text for perfect contrast
+  static const Color userBubbleLightBg = Color(0xFFECE9F3); // Light pastel purple
+  static const Color userBubbleDarkBg = Color(0xFFC2B8D9); // Glowing neon purple
+  static const Color userBubbleLightBorder = Color(0xFFC2B8D9);
+  static const Color userBubbleDarkBorder = Color(0xFF8D7FB3);
+  static const Color userBubbleText = Color(0xFF1E1B4B); // Deep text for perfect contrast
 
   static const Color systemBubbleLightBg = Color(0xFFF3F4F6); // Light pastel grey
   static const Color systemBubbleDarkBg = Color(0xFFE5E7EB); // Light pastel grey

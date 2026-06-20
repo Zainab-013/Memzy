@@ -294,9 +294,6 @@ class AboutUsScreen extends StatelessWidget {
     final subtitleColor = isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant;
     final cardBgColor = isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white;
 
-    final primaryAccent = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
-    final secondaryAccent = isDark ? StitchTheme.secondaryFixedDim : StitchTheme.secondary;
-
     return Scaffold(
       backgroundColor: isDark ? StitchTheme.darkBackground : StitchTheme.background,
       appBar: AppBar(

@@ -130,6 +130,14 @@ class ChatProvider extends ChangeNotifier {
     return newChat;
   }
 
+  // Rename chat
+  Future<void> renameChat(String chatId, String newTitle) async {
+    final chat = _chats.firstWhere((c) => c.id == chatId);
+    chat.title = newTitle;
+    await chat.save();
+    notifyListeners();
+  }
+
   // Pin / Unpin chat
   Future<void> togglePinChat(String chatId) async {
     final chat = _chats.firstWhere((c) => c.id == chatId);
@@ -312,8 +320,6 @@ class ChatProvider extends ChangeNotifier {
     _messages.add(userMsg);
     notifyListeners();
 
-    bool reminderCreated = false;
-
     final cleanTextText = text.trim();
     final isDefaultAttachmentText = cleanTextText == "Sent an image" ||
         cleanTextText == "Sent a document" ||
@@ -357,7 +363,6 @@ class ChatProvider extends ChangeNotifier {
             _pendingReminderContent.remove(chatId);
             _pendingReminderMsgId.remove(chatId);
             _pendingReminderTime.remove(chatId);
-            reminderCreated = true;
             notifyListeners();
             return;
           }
@@ -380,7 +385,6 @@ class ChatProvider extends ChangeNotifier {
 
           await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
           _messages.add(systemMsg);
-          reminderCreated = true;
           notifyListeners();
           return;
         }
@@ -409,7 +413,6 @@ class ChatProvider extends ChangeNotifier {
         _pendingReminderContent.remove(chatId);
         _pendingReminderMsgId.remove(chatId);
         _pendingReminderTime.remove(chatId);
-        reminderCreated = true;
         notifyListeners();
       } else {
         // Normal flow
@@ -425,12 +428,13 @@ class ChatProvider extends ChangeNotifier {
               cleanContent == 'previous' ||
               cleanContent == 'to do that' ||
               cleanContent == 'to do this' ||
-              cleanContent == 'reminder';
-
+              cleanContent == 'reminder' ||
+              cleanContent == 'notification';
+ 
           DateTime finalTime = parseResult.time;
           String finalContent = parseResult.content;
           bool hasResolvedTime = parseResult.hasTimeExpression;
-
+ 
           if (isPronoun) {
             // Look for previous user text message in this chat
             final chatMessages = getMessagesForChat(chatId);
@@ -442,9 +446,9 @@ class ChatProvider extends ChangeNotifier {
               }
             }
             if (prevUserMsg != null) {
-              // Try parsing the previous message context without requiring "remind" keyword
+              // Try parsing the previous message context without requiring trigger keyword
               final prevParse = ReminderParser.parse(prevUserMsg.text, requireRemindKeyword: false);
-
+ 
               // If the current message has no time expression (e.g. "remind me of that")
               // but the previous message does have a time expression (e.g. "I have a meeting after one minute")
               if (!parseResult.hasTimeExpression && prevParse != null && prevParse.hasTimeExpression) {
@@ -460,8 +464,8 @@ class ChatProvider extends ChangeNotifier {
                 }
               }
             }
-          } else if (cleanContent == 'reminder' && parseResult.hasTimeExpression) {
-            // If content is just "reminder" but has time, e.g. "remind me in 5 minutes"
+          } else if ((cleanContent == 'reminder' || cleanContent == 'notification') && parseResult.hasTimeExpression) {
+            // If content is just "reminder"/"notification" but has time, e.g. "remind me in 5 minutes"
             // Look back for previous message content
             final chatMessages = getMessagesForChat(chatId);
             Message? prevUserMsg;
@@ -479,12 +483,12 @@ class ChatProvider extends ChangeNotifier {
               }
             }
           }
-
+ 
           // Clean up finalContent pronoun references if it's still generic/pronoun
           if (finalContent.trim().toLowerCase() == 'that' ||
               finalContent.trim().toLowerCase() == 'this' ||
               finalContent.trim().toLowerCase() == 'it') {
-            finalContent = "Reminder";
+            finalContent = text.toLowerCase().contains('notif') ? "Notification" : "Reminder";
           }
 
           if (!hasResolvedTime) {
@@ -503,7 +507,6 @@ class ChatProvider extends ChangeNotifier {
 
             await DatabaseService.messagesBox.put(systemMsg.id, systemMsg);
             _messages.add(systemMsg);
-            reminderCreated = true;
             notifyListeners();
           } else {
             await createReminder(
@@ -513,7 +516,6 @@ class ChatProvider extends ChangeNotifier {
               time: finalTime,
             );
 
-            reminderCreated = true;
             notifyListeners();
           }
         }

@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/reminder.dart';
-import '../models/chat.dart';
 import '../theme/stitch_theme.dart';
+import 'conversation_screen.dart';
 
 class AllRemindersScreen extends StatefulWidget {
   const AllRemindersScreen({super.key});
@@ -15,6 +15,8 @@ class AllRemindersScreen extends StatefulWidget {
 }
 
 class _AllRemindersScreenState extends State<AllRemindersScreen> {
+  String? _selectedFilter = 'Today';
+
   @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
@@ -48,7 +50,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -76,66 +78,153 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                   const SizedBox(height: 28),
                 ],
 
+                // Active filter indicator chip
+                if (_selectedFilter != null) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2F6),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF312E81) : const Color(0xFFCBD5E1),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.filter_list,
+                              size: 14,
+                              color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Showing $_selectedFilter tasks only',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedFilter = null;
+                          });
+                        },
+                        child: const Text('Clear Filter'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // Today Section
-                if (today.isNotEmpty) ...[
+                if ((_selectedFilter == null || _selectedFilter == 'Today') && today.isNotEmpty) ...[
                   _buildSectionHeader('Today', today.length.toString(), StitchTheme.primary, isDark),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: today.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
                     itemBuilder: (context, index) =>
                         _buildReminderCard(context, today[index], isDark, chatProvider, false),
                   ),
                   const SizedBox(height: 24),
                 ],
+                if (_selectedFilter == 'Today' && today.isEmpty) ...[
+                  _buildSectionHeader('Today', '0', StitchTheme.primary, isDark),
+                  _buildNoFilteredRemindersState('Today', isDark),
+                  const SizedBox(height: 24),
+                ],
 
                 // Upcoming Section
-                if (upcoming.isNotEmpty) ...[
+                if ((_selectedFilter == null || _selectedFilter == 'Upcoming') && upcoming.isNotEmpty) ...[
                   _buildSectionHeader('Upcoming', upcoming.length.toString(), StitchTheme.secondary, isDark),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: upcoming.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
                     itemBuilder: (context, index) =>
                         _buildReminderCard(context, upcoming[index], isDark, chatProvider, false),
                   ),
                   const SizedBox(height: 24),
                 ],
+                if (_selectedFilter == 'Upcoming' && upcoming.isEmpty) ...[
+                  _buildSectionHeader('Upcoming', '0', StitchTheme.secondary, isDark),
+                  _buildNoFilteredRemindersState('Upcoming', isDark),
+                  const SizedBox(height: 24),
+                ],
 
                 // Anytime Section
-                if (anytime.isNotEmpty) ...[
+                if ((_selectedFilter == null || _selectedFilter == 'Anytime') && anytime.isNotEmpty) ...[
                   _buildSectionHeader('Anytime', anytime.length.toString(), Colors.teal, isDark),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: anytime.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
                     itemBuilder: (context, index) =>
                         _buildReminderCard(context, anytime[index], isDark, chatProvider, false),
                   ),
                   const SizedBox(height: 24),
                 ],
+                if (_selectedFilter == 'Anytime' && anytime.isEmpty) ...[
+                  _buildSectionHeader('Anytime', '0', Colors.teal, isDark),
+                  _buildNoFilteredRemindersState('Anytime', isDark),
+                  const SizedBox(height: 24),
+                ],
 
                 // Completed Section
-                if (completed.isNotEmpty) ...[
+                if ((_selectedFilter == null || _selectedFilter == 'Completed') && completed.isNotEmpty) ...[
                   _buildSectionHeader('Completed', completed.length.toString(), isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant, isDark),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Opacity(
                     opacity: 0.65,
                     child: ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: completed.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
                       itemBuilder: (context, index) =>
                           _buildReminderCard(context, completed[index], isDark, chatProvider, true),
                     ),
                   ),
+                  const SizedBox(height: 24),
+                ],
+                if (_selectedFilter == 'Completed' && completed.isEmpty) ...[
+                  _buildSectionHeader('Completed', '0', isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant, isDark),
+                  _buildNoFilteredRemindersState('Completed', isDark),
+                  const SizedBox(height: 24),
+                ],
+
+                // Overdue Section (only shown when selectedFilter is 'Overdue')
+                if (_selectedFilter == 'Overdue') ...[
+                  _buildSectionHeader('Overdue', overdue.length.toString(), Colors.red, isDark),
+                  const SizedBox(height: 8),
+                  if (overdue.isNotEmpty) ...[
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: overdue.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) =>
+                          _buildReminderCard(context, overdue[index], isDark, chatProvider, false),
+                    ),
+                  ] else ...[
+                    _buildNoFilteredRemindersState('Overdue', isDark),
+                  ],
                   const SizedBox(height: 24),
                 ],
 
@@ -145,149 +234,9 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                   const SizedBox(height: 24),
                 ],
 
-                // Tip of the day card
-                Container(
-                  width: double.infinity,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0x1A6366F1),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Gradient Background
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isDark
-                                ? [const Color(0xFF1E1B4B), const Color(0xFF581C87)]
-                                : [StitchTheme.primary, const Color(0xFF818CF8)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                      ),
-                      // Decorative Circle
-                      Positioned(
-                        right: -30,
-                        top: -30,
-                        child: Container(
-                          width: 160,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.06),
-                          ),
-                        ),
-                      ),
-                      // Decorative Circle 2
-                      Positioned(
-                        left: -50,
-                        bottom: -50,
-                        child: Container(
-                          width: 130,
-                          height: 130,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.04),
-                          ),
-                        ),
-                      ),
-                      // Text Contents overlay
-                      Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                'Tip of the day'.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Focus on one task at a time.',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+
                 const SizedBox(height: 100),
               ],
-            ),
-          ),
-        ),
-      ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isDark
-                ? [const Color(0xFF818CF8), const Color(0xFFC084FC)] // Pastel indigo-purple
-                : [StitchTheme.primary, StitchTheme.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: isDark
-                  ? const Color(0xFF818CF8).withValues(alpha: 0.4)
-                  : StitchTheme.primary.withValues(alpha: 0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _showCreateReminderDialog(context, chatProvider, isDark),
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.add_task, color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'New Task',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: Theme.of(context).textTheme.bodyLarge?.fontFamily,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ),
@@ -419,65 +368,84 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
         itemBuilder: (context, index) {
           final stat = stats[index];
           final gradientColors = stat['gradient'] as List<Color>;
-          return Container(
-            width: 120,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: gradientColors,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.white.withValues(alpha: 0.5),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? Colors.black.withValues(alpha: 0.2)
-                      : (stat['title'] == 'Overdue'
-                          ? const Color(0x1AFE1D48)
-                          : const Color(0x0C6366F1)),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+          final isSelected = _selectedFilter == stat['title'];
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                if (_selectedFilter == stat['title']) {
+                  _selectedFilter = null;
+                } else {
+                  _selectedFilter = stat['title'];
+                }
+              });
+            },
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _selectedFilter == null || isSelected ? 1.0 : 0.45,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 120,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradientColors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected
+                        ? (isDark ? Colors.white : StitchTheme.primary)
+                        : (isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.white.withValues(alpha: 0.5)),
+                    width: isSelected ? 2.5 : 1.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.2)
+                          : (stat['title'] == 'Overdue'
+                              ? const Color(0x1AFE1D48)
+                              : const Color(0x0C45346A)),
+                      blurRadius: isSelected ? 14 : 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      stat['icon'] as IconData,
-                      size: 16,
-                      color: stat['iconColor'] as Color,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Icon(
+                          stat['icon'] as IconData,
+                          size: 16,
+                          color: stat['iconColor'] as Color,
+                        ),
+                        Text(
+                          stat['value'] as String,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: stat['textColor'] as Color,
+                          ),
+                        ),
+                      ],
                     ),
                     Text(
-                      stat['value'] as String,
+                      stat['title'] as String,
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: stat['textColor'] as Color,
                       ),
                     ),
                   ],
                 ),
-                Text(
-                  stat['title'] as String,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: stat['textColor'] as Color,
-                  ),
-                ),
-              ],
+              ),
             ),
           );
         },
@@ -545,6 +513,32 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     );
   }
 
+  Widget _buildNoFilteredRemindersState(String category, bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 24.0),
+        child: Column(
+          children: [
+            Icon(
+              Icons.assignment_turned_in_outlined,
+              size: 48,
+              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "No $category Tasks",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSuggestionChip(String text, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -594,110 +588,117 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                     ? (isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary)
                     : (isDark ? StitchTheme.secondaryFixedDim : StitchTheme.secondary))));
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: leftIndicatorColor,
-            width: isOverdue ? 1.5 : 1.0,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? StitchTheme.darkSurfaceContainerLowest : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: leftIndicatorColor,
+          width: isOverdue ? 1.5 : 1.0,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Circular custom check box with scale animation
-              GestureDetector(
-                onTap: () => provider.toggleReminderCompletion(reminder.id),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: isDone
-                        ? LinearGradient(
-                            colors: isDark
-                                ? [const Color(0xFF818CF8), const Color(0xFFC084FC)]
-                                : [StitchTheme.primary, StitchTheme.secondary],
-                          )
-                        : null,
-                    border: Border.all(
-                      color: isDone
-                          ? Colors.transparent
-                          : (isDark ? StitchTheme.darkOnSurfaceVariant.withValues(alpha: 0.4) : StitchTheme.outline.withValues(alpha: 0.5)),
-                      width: 2,
-                    ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Circular custom check box with scale animation
+            GestureDetector(
+              onTap: () => provider.toggleReminderCompletion(reminder.id),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: isDone
+                      ? LinearGradient(
+                          colors: isDark
+                              ? [const Color(0xFF818CF8), const Color(0xFFC084FC)]
+                              : [StitchTheme.primary, StitchTheme.secondary],
+                        )
+                      : null,
+                  border: Border.all(
+                    color: isDone
+                        ? Colors.transparent
+                        : (isDark ? StitchTheme.darkOnSurfaceVariant.withValues(alpha: 0.4) : StitchTheme.outline.withValues(alpha: 0.5)),
+                    width: 2,
                   ),
-                  child: Center(
-                    child: AnimatedScale(
-                      scale: isDone ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 150),
-                      child: const Icon(
-                        Icons.check,
-                        size: 14,
-                        color: Colors.white,
-                      ),
+                ),
+                child: Center(
+                  child: AnimatedScale(
+                    scale: isDone ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 150),
+                    child: const Icon(
+                      Icons.check,
+                      size: 14,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+            ),
+            const SizedBox(width: 14),
 
-              // Reminder Information
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      reminder.content,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.normal,
-                        decoration: isDone ? TextDecoration.lineThrough : null,
-                        color: isDark
-                            ? (isDone ? StitchTheme.darkOnSurfaceVariant : StitchTheme.darkOnSurface)
-                            : (isDone ? StitchTheme.onSurfaceVariant : StitchTheme.onSurface),
-                      ),
+            // Reminder Information
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    reminder.content,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.normal,
+                      decoration: isDone ? TextDecoration.lineThrough : null,
+                      color: isDark
+                          ? (isDone ? StitchTheme.darkOnSurfaceVariant : StitchTheme.darkOnSurface)
+                          : (isDone ? StitchTheme.onSurfaceVariant : StitchTheme.onSurface),
                     ),
-                    const SizedBox(height: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  icon,
-                                  size: 13,
+                  ),
+                  const SizedBox(height: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                icon,
+                                size: 13,
+                                color: isOverdue
+                                    ? StitchTheme.secondary
+                                    : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                formattedTime,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
                                   color: isOverdue
                                       ? StitchTheme.secondary
                                       : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  formattedTime,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
-                                    color: isOverdue
-                                        ? StitchTheme.secondary
-                                        : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                          if (chat != null)
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ConversationScreen(chatId: chat.id),
                                   ),
-                                ),
-                              ],
-                            ),
-                            if (chat != null)
-                              Container(
+                                );
+                              },
+                              child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: isDark ? const Color(0xFF1B1838) : const Color(0xFFEEF2F6),
@@ -727,89 +728,89 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                                   ],
                                 ),
                               ),
-                          ],
-                        ),
-                        if (isOverdue) ...[
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF4C0519) : const Color(0xFFFFE4E6),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: isDark ? const Color(0xFFBE123C) : const Color(0xFFFECDD3),
-                                width: 0.5,
-                              ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.warning_amber_rounded,
-                                  size: 10,
-                                  color: isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "Overdue",
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Trailing Options Menu (Edit / Delete)
-              PopupMenuButton<String>(
-                icon: Icon(
-                  Icons.more_vert,
-                  color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
-                  size: 20,
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    _showEditReminderDialog(context, reminder, provider, isDark);
-                  } else if (value == 'delete') {
-                    _confirmDeleteReminder(context, reminder, provider);
-                  }
-                },
-                itemBuilder: (context) => [
-                  if (!isDone)
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, size: 18),
-                          SizedBox(width: 8),
-                          Text('Edit'),
                         ],
                       ),
-                    ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, size: 18, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Delete', style: TextStyle(color: Colors.red)),
+                      if (isOverdue) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF4C0519) : const Color(0xFFFFE4E6),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFFBE123C) : const Color(0xFFFECDD3),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                size: 10,
+                                color: isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Overdue",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            
+            // Trailing Options Menu (Edit / Delete)
+            PopupMenuButton<String>(
+              icon: Icon(
+                Icons.more_vert,
+                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                size: 20,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _showEditReminderDialog(context, reminder, provider, isDark);
+                } else if (value == 'delete') {
+                  _confirmDeleteReminder(context, reminder, provider);
+                }
+              },
+              itemBuilder: (context) => [
+                if (!isDone)
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 18),
+                        SizedBox(width: 8),
+                        Text('Edit'),
+                      ],
+                    ),
+                  ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, size: 18, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Delete', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -842,274 +843,7 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
     );
   }
 
-  void _showCreateReminderDialog(BuildContext context, ChatProvider chatProvider, bool isDark) {
-    final contentController = TextEditingController();
-    DateTime? selectedDateTime = DateTime.now().add(const Duration(hours: 1));
-    String? selectedChatId = chatProvider.chats.isNotEmpty ? chatProvider.chats.first.id : null;
-    int selectedOption = 1; // "In 1 Hr" initially
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final highlightColor = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
-            return AlertDialog(
-              scrollable: true,
-              backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              title: Text(
-                'Create Reminder',
-                style: TextStyle(
-                  color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: contentController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: 'What to remember?',
-                      labelStyle: TextStyle(
-                        color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: highlightColor),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    style: TextStyle(
-                      color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Link to Chat Thread:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  if (chatProvider.chats.isEmpty)
-                    const Text('No chats available to link')
-                  else
-                    SizedBox(
-                      height: 38,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: chatProvider.chats.length,
-                        separatorBuilder: (context, index) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final chat = chatProvider.chats[index];
-                          final isSelected = selectedChatId == chat.id;
-                          return ChoiceChip(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  StitchTheme.getChatIcon(chat.iconCode),
-                                  size: 14,
-                                  color: isSelected
-                                      ? (isDark ? Colors.black : Colors.white)
-                                      : (isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(chat.title),
-                              ],
-                            ),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setModalState(() {
-                                  selectedChatId = chat.id;
-                                });
-                              }
-                            },
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? (isDark ? Colors.black : Colors.white)
-                                  : (isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface),
-                              fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                            selectedColor: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
-                            backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color: isSelected
-                                    ? Colors.transparent
-                                    : (isDark ? Colors.white.withValues(alpha: 0.12) : Colors.grey.shade300),
-                              ),
-                            ),
-                            showCheckmark: false,
-                          );
-                        },
-                      ),
-                    ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Schedule Time:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildTimeChip(
-                        label: 'In 10 Mins',
-                        isSelected: selectedOption == 0,
-                        onTap: () {
-                          setModalState(() {
-                            selectedOption = 0;
-                            selectedDateTime = DateTime.now().add(const Duration(minutes: 10));
-                          });
-                        },
-                        isDark: isDark,
-                      ),
-                      _buildTimeChip(
-                        label: 'In 1 Hr',
-                        isSelected: selectedOption == 1,
-                        onTap: () {
-                          setModalState(() {
-                            selectedOption = 1;
-                            selectedDateTime = DateTime.now().add(const Duration(hours: 1));
-                          });
-                        },
-                        isDark: isDark,
-                      ),
-                      _buildTimeChip(
-                        label: 'Tomorrow 8 AM',
-                        isSelected: selectedOption == 3,
-                        onTap: () {
-                          setModalState(() {
-                            selectedOption = 3;
-                            final tomorrow = DateTime.now().add(const Duration(days: 1));
-                            selectedDateTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8, 0);
-                          });
-                        },
-                        isDark: isDark,
-                      ),
-                      _buildTimeChip(
-                        label: 'Anytime',
-                        isSelected: selectedOption == 4,
-                        onTap: () {
-                          setModalState(() {
-                            selectedOption = 4;
-                            selectedDateTime = null;
-                          });
-                        },
-                        isDark: isDark,
-                      ),
-                      _buildTimeChip(
-                        label: 'Custom...',
-                        isSelected: selectedOption == 5,
-                        onTap: () async {
-                          final now = DateTime.now();
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDateTime ?? now.add(const Duration(hours: 1)),
-                            firstDate: now,
-                            lastDate: now.add(const Duration(days: 365)),
-                          );
-                          if (date != null && context.mounted) {
-                            final time = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.fromDateTime(selectedDateTime ?? now.add(const Duration(hours: 1))),
-                            );
-                            if (time != null) {
-                              setModalState(() {
-                                selectedOption = 5;
-                                selectedDateTime = DateTime(
-                                  date.year,
-                                  date.month,
-                                  date.day,
-                                  time.hour,
-                                  time.minute,
-                                );
-                              });
-                            }
-                          }
-                        },
-                        isDark: isDark,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          selectedDateTime == null ? Icons.notifications_off : Icons.access_time_filled,
-                          size: 16,
-                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            selectedDateTime == null
-                                ? 'Will save as anytime task (no notification alert)'
-                                : 'Will remind on: ${DateFormat('MMM d, yyyy - h:mm a').format(selectedDateTime!)}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: StitchTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-                  ),
-                  onPressed: () async {
-                    final text = contentController.text.trim();
-                    if (text.isNotEmpty && selectedChatId != null) {
-                      await chatProvider.createReminder(
-                        chatId: selectedChatId!,
-                        messageId: 'manual_creation_${DateTime.now().millisecondsSinceEpoch}',
-                        content: text,
-                        time: selectedDateTime,
-                      );
-                      if (context.mounted) {
-                        Navigator.of(context).pop();
-                      }
-                    }
-                  },
-                  child: const Text('Create'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 
   void _showEditReminderDialog(
       BuildContext context, Reminder reminder, ChatProvider provider, bool isDark) {

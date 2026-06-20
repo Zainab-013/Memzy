@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,11 +8,16 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:archive/archive.dart';
 import '../providers/chat_provider.dart';
 import '../providers/theme_provider.dart';
 import '../models/message.dart';
 import '../models/reminder.dart';
+import '../models/chat.dart';
 import '../theme/stitch_theme.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'chat_info_screen.dart';
 import 'starred_messages_screen.dart';
 import '../widgets/full_screen_image_viewer.dart';
@@ -304,8 +310,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final suggestionChips = chat.title == "Placement Prep"
         ? ["Add to Calendar", "Draft Email", "Search Roles"]
         : ["Mark Done", "Save PDF Link", "Set Reminder"];
-
-    final avatarBgColor = StitchTheme.getAvatarBgColor(chat.title, isDark);
     final avatarIconColor = StitchTheme.getAvatarIconColor(chat.title, isDark);
 
     return Scaffold(
@@ -469,6 +473,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
                           builder: (context) => StarredMessagesScreen(chatId: widget.chatId),
                         ),
                       );
+                    } else if (value == 'export') {
+                      await _exportChat(chatProvider);
                     }
                   },
                   itemBuilder: (context) => [
@@ -479,6 +485,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     const PopupMenuItem(
                       value: 'starred',
                       child: Text('Starred Messages'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'export',
+                      child: Text('Export Chat'),
                     ),
                     const PopupMenuItem(
                       value: 'clear',
@@ -895,12 +905,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (isMe) ...[
-                if (msg.isPinned == true) ...[
-                  const Icon(Icons.push_pin, size: 14, color: Colors.blueAccent),
-                  const SizedBox(width: 4),
-                ],
-              ],
               GestureDetector(
                 onTap: () async {
                   if (_isSelectionMode) {
@@ -978,36 +982,56 @@ class _ConversationScreenState extends State<ConversationScreen> {
                         ),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
+                    child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        _buildBubbleContent(msg, isDark),
-                        const SizedBox(height: 6),
-                        reminder != null
-                            ? Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  reminderWidget,
-                                  timestampWidget,
-                                ],
-                              )
-                            : Align(
-                                alignment: Alignment.bottomRight,
-                                child: timestampWidget,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.only(
+                                right: msg.isPinned == true ? 16.0 : 0.0,
+                                top: msg.isPinned == true ? 4.0 : 0.0,
                               ),
+                              child: _buildBubbleContent(msg, isDark),
+                            ),
+                            const SizedBox(height: 6),
+                            reminder != null
+                                ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      reminderWidget,
+                                      timestampWidget,
+                                    ],
+                                  )
+                                : Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: timestampWidget,
+                                  ),
+                          ],
+                        ),
+                        if (msg.isPinned == true)
+                          Positioned(
+                            top: -4,
+                            right: -6,
+                            child: Transform.rotate(
+                              angle: 0.6,
+                              child: Icon(
+                                Icons.push_pin,
+                                size: 14,
+                                color: isMe
+                                    ? StitchTheme.userBubbleText.withValues(alpha: 0.55)
+                                    : StitchTheme.systemBubbleText.withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
               ),
-              if (!isMe) ...[
-                if (msg.isPinned == true) ...[
-                  const SizedBox(width: 4),
-                  const Icon(Icons.push_pin, size: 14, color: Colors.blueAccent),
-                ],
-              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -1044,6 +1068,122 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 
+  Widget _buildLinkifiedText(String text, bool isMe, bool isDark) {
+    final baseStyle = TextStyle(
+      fontSize: 15,
+      color: isMe
+          ? StitchTheme.userBubbleText
+          : StitchTheme.systemBubbleText,
+    );
+
+    final linkColor = isMe
+        ? const Color(0xFF1E3A8A)
+        : (isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary);
+
+    // Matches http://, https://, and www. links
+    final RegExp urlRegExp = RegExp(
+      r'\b(https?:\/\/[^\s]+|www\.[^\s]+)',
+      caseSensitive: false,
+    );
+
+    final List<TextSpan> spans = [];
+    final Iterable<RegExpMatch> matches = urlRegExp.allMatches(text);
+
+    int lastIndex = 0;
+    for (final match in matches) {
+      if (match.start > lastIndex) {
+        spans.add(TextSpan(
+          text: text.substring(lastIndex, match.start),
+          style: baseStyle,
+        ));
+      }
+
+      final String rawUrlStr = match.group(0)!;
+
+      // Separate actual URL from trailing punctuation
+      int urlEndIndex = rawUrlStr.length;
+      while (urlEndIndex > 0) {
+        final char = rawUrlStr[urlEndIndex - 1];
+        if (char == '.' || char == ',' || char == ')' || char == '}' || char == ']' || char == '?' || char == '!') {
+          urlEndIndex--;
+        } else {
+          break;
+        }
+      }
+
+      final String urlStr = rawUrlStr.substring(0, urlEndIndex);
+      final String trailingPunctuation = rawUrlStr.substring(urlEndIndex);
+
+      String launchUrlStr = urlStr;
+      if (urlStr.toLowerCase().startsWith('www.')) {
+        launchUrlStr = 'https://$urlStr';
+      }
+
+      final recognizer = TapGestureRecognizer()
+        ..onTap = () async {
+          final Uri? uri = Uri.tryParse(launchUrlStr);
+          if (uri != null) {
+            try {
+              // Direct launch to bypass Android 11+ Package Visibility query restrictions
+              final launched = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+              if (!launched) {
+                await launchUrl(
+                  uri,
+                  mode: LaunchMode.platformDefault,
+                );
+              }
+            } catch (e) {
+              debugPrint("Failed to launch URL: $e");
+              try {
+                await launchUrl(uri);
+              } catch (fallbackError) {
+                debugPrint("Fallback launch failed: $fallbackError");
+              }
+            }
+          }
+        };
+
+      spans.add(TextSpan(
+        text: urlStr,
+        style: baseStyle.copyWith(
+          color: linkColor,
+          decoration: TextDecoration.underline,
+        ),
+        recognizer: recognizer,
+      ));
+
+      if (trailingPunctuation.isNotEmpty) {
+        spans.add(TextSpan(
+          text: trailingPunctuation,
+          style: baseStyle,
+        ));
+      }
+
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastIndex),
+        style: baseStyle,
+      ));
+    }
+
+    if (spans.isEmpty) {
+      return Text(text, style: baseStyle);
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: baseStyle,
+        children: spans,
+      ),
+    );
+  }
+
   Widget _buildBubbleContent(Message msg, bool isDark) {
     if (msg.type == 'image') {
       return Column(
@@ -1076,15 +1216,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           ),
           if (msg.text != "Sent an image") ...[
             const SizedBox(height: 8),
-            Text(
-              msg.text,
-              style: TextStyle(
-                fontSize: 15,
-                color: msg.sender == 'user'
-                    ? StitchTheme.userBubbleText
-                    : StitchTheme.systemBubbleText,
-              ),
-            ),
+            _buildLinkifiedText(msg.text, msg.sender == 'user', isDark),
           ],
         ],
       );
@@ -1144,29 +1276,13 @@ class _ConversationScreenState extends State<ConversationScreen> {
           ),
           if (showCaption) ...[
             const SizedBox(height: 8),
-            Text(
-              msg.text,
-              style: TextStyle(
-                fontSize: 15,
-                color: msg.sender == 'user'
-                    ? StitchTheme.userBubbleText
-                    : StitchTheme.systemBubbleText,
-              ),
-            ),
+            _buildLinkifiedText(msg.text, msg.sender == 'user', isDark),
           ],
         ],
       );
     } else {
       // Standard text bubble content
-      return Text(
-        msg.text,
-        style: TextStyle(
-          fontSize: 15,
-          color: msg.sender == 'user'
-              ? StitchTheme.userBubbleText
-              : StitchTheme.systemBubbleText,
-        ),
-      );
+      return _buildLinkifiedText(msg.text, msg.sender == 'user', isDark);
     }
   }
 
@@ -1313,6 +1429,186 @@ class _ConversationScreenState extends State<ConversationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Sharing failed")),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportChat(ChatProvider provider) async {
+    final messages = provider.getMessagesForChat(widget.chatId);
+    if (messages.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No messages to export.")),
+        );
+      }
+      return;
+    }
+
+    final chat = provider.chats.firstWhere(
+      (c) => c.id == widget.chatId,
+      orElse: () => Chat(id: widget.chatId, title: "Chat", iconCode: Icons.chat.codePoint, createdAt: DateTime.now()),
+    );
+
+    // Show selection dialog
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final buttonColor = isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary;
+        return AlertDialog(
+          backgroundColor: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          titlePadding: const EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 12),
+          contentPadding: const EdgeInsets.only(left: 24, right: 24, bottom: 20),
+          actionsPadding: const EdgeInsets.only(right: 16, bottom: 12),
+          title: Text(
+            'Export chat',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+              color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
+            ),
+          ),
+          content: Text(
+            'Including media will increase the size of the chat export.',
+            style: TextStyle(
+              fontSize: 16,
+              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                'WITHOUT MEDIA',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: buttonColor,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                'INCLUDE MEDIA',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: buttonColor,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == null) return;
+    final includeMedia = result;
+
+    final sortedMessages = List<Message>.from(messages)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    final buffer = StringBuffer();
+    buffer.writeln('----------------------------------------');
+    buffer.writeln('Chat Title: ${chat.title}');
+    buffer.writeln('Export Date: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}');
+    buffer.writeln('----------------------------------------\n');
+
+    for (var msg in sortedMessages) {
+      final sender = msg.sender == 'user' ? 'User' : 'Memzy';
+      final timeStr = DateFormat('yyyy-MM-dd hh:mm a').format(msg.timestamp);
+      buffer.writeln('[$timeStr] $sender:');
+      buffer.writeln(msg.text);
+      if (msg.fileName != null) {
+        buffer.writeln('  [Attachment: ${msg.fileName} (${msg.type})]');
+      }
+      buffer.writeln('----------------------------------------');
+    }
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final safeTitle = chat.title.replaceAll(RegExp(r'[^\w\s\-]'), '_');
+
+      if (includeMedia) {
+        // Create a ZIP archive containing the chat text file and all media files
+        final archive = Archive();
+
+        // Add chat text file to the ZIP archive
+        final txtBytes = utf8.encode(buffer.toString());
+        final txtArchiveFile = ArchiveFile('chat_$safeTitle.txt', txtBytes.length, txtBytes);
+        archive.addFile(txtArchiveFile);
+
+        // Add media files to the ZIP archive
+        final Set<String> addedNames = {};
+        for (var msg in sortedMessages) {
+          if (msg.fileLocalPath != null) {
+            final file = File(msg.fileLocalPath!);
+            if (await file.exists()) {
+              final bytes = await file.readAsBytes();
+
+              var baseName = msg.fileName ?? msg.fileLocalPath!.split('/').last;
+              var uniqueName = baseName;
+              int counter = 1;
+              final extIndex = baseName.lastIndexOf('.');
+              final nameWithoutExt = extIndex != -1 ? baseName.substring(0, extIndex) : baseName;
+              final ext = extIndex != -1 ? baseName.substring(extIndex) : '';
+
+              while (addedNames.contains(uniqueName)) {
+                uniqueName = '$nameWithoutExt ($counter)$ext';
+                counter++;
+              }
+              addedNames.add(uniqueName);
+
+              final mediaArchiveFile = ArchiveFile(uniqueName, bytes.length, bytes);
+              archive.addFile(mediaArchiveFile);
+            }
+          }
+        }
+
+        // Encode archive to zip bytes
+        final zipEncoder = ZipEncoder();
+        final zipBytes = zipEncoder.encode(archive);
+        if (zipBytes == null) throw Exception("Failed to encode ZIP archive");
+
+        // Write the ZIP file to the temp directory
+        final zipFile = File('${tempDir.path}/chat_$safeTitle.zip');
+        await zipFile.writeAsBytes(zipBytes);
+
+        // Share the ZIP file
+        await Share.shareXFiles(
+          [
+            XFile(
+              zipFile.path,
+              mimeType: 'application/zip',
+              name: 'chat_$safeTitle.zip',
+            )
+          ],
+          subject: 'Memzy Chat Export: ${chat.title}',
+        );
+      } else {
+        // Share the plain text file only
+        final textFile = File('${tempDir.path}/chat_$safeTitle.txt');
+        await textFile.writeAsString(buffer.toString());
+
+        await Share.shareXFiles(
+          [
+            XFile(
+              textFile.path,
+              mimeType: 'text/plain',
+              name: 'chat_$safeTitle.txt',
+            )
+          ],
+          subject: 'Memzy Chat Export: ${chat.title}',
+        );
+      }
+    } catch (e) {
+      debugPrint("Error exporting chat: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to export chat")),
         );
       }
     }
