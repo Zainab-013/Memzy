@@ -51,3 +51,8 @@ app.*.map.json
 /backend_notes.txt
 /imlementation_plan.md
 /task.md
+
+# Private signing keys
+**/android/key.properties
+**/android/app/upload-keystore.jks
+*.jks
