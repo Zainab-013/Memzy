@@ -14,7 +14,7 @@ People often scatter important information across multiple places—such as What
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 graph TD
