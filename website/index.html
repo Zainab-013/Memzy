@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memzy — Chat-Based Personal Memory Assistant</title>
+  <meta name="description" content="Memzy is a premium, offline-first personal memory assistant. Save text, files, and links in a familiar chat interface with automatic reminder parsing.">
+  <meta name="keywords" content="Memzy, memory assistant, chat-based notes, automatic reminders, flutter, personal organizer">
+  <link rel="icon" type="image/png" href="favicon.png">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background Glow FX -->
+  <div class="glow-bg">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+  </div>
+
+  <!-- Header / Navigation -->
+  <header class="header">
+    <div class="header-container">
+      <a href="#" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+        <span>Memzy</span>
+      </a>
+      
+      <nav class="nav-menu" id="nav-menu">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#demo" class="nav-link">Try Simulator</a>
+        <a href="#about" class="nav-link">About Us</a>
+        <a href="#terms" class="nav-link">Terms & Conditions</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="#download" class="btn btn-primary btn-sm">Get Memzy</a>
+        <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle Menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <div class="badge">✨ Offline-First Personal Assistant</div>
+          <h1>Never Forget a Thing.<br><span class="gradient-text">Chat with Your Memory.</span></h1>
+          <p class="hero-subtitle">
+            Memzy lets you store notes, files, and bookmarks in a premium chat-based interface. Type naturally, and let our engine automatically extract reminders and schedule notifications.
+          </p>
+          <div class="hero-ctas">
+            <a href="#demo" class="btn btn-primary">Try Live Demo</a>
+            <a href="#features" class="btn btn-secondary">Explore Features</a>
+          </div>
+          <div class="hero-download-badges" id="download">
+            <div class="badge-item">
+              <svg class="badge-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 15.341c-.117-.117-.234-.234-.4-.3-.117-.06-.3-.117-.468-.117h-.06c-.468.06-.935.176-1.4.293-.41.117-.82.234-1.23.293-.526.06-1.052.117-1.58.117h-.058c-.527 0-1.054-.06-1.58-.117-.41-.06-.82-.176-1.23-.293-.468-.117-.936-.234-1.403-.293H8.13c-.176 0-.352.057-.468.117-.176.06-.3.18-.4.3L4.735 18.8c-.468.468-.82 1.112-1.053 1.815-.234.7-.293 1.464-.234 2.167.06.878.41 1.7.995 2.341.527.586 1.23.996 2.049 1.172.82.176 1.639.117 2.4-.117.76-.234 1.463-.644 1.99-1.23.117-.117.234-.234.4-.3.118-.06.301-.117.47-.117h.057c.469-.06.937-.176 1.405-.293.41-.117.82-.234 1.229-.293.527-.06 1.054-.117 1.58-.117h.06c.526 0 1.052.06 1.58.117.41.06.819.176 1.23.293.468.117.935.234 1.4.293h.06c.176 0 .351-.057.468-.117.176-.06.3-.18.4-.3l2.518-3.462c.468-.468.82-1.112 1.054-1.815.234-.7.292-1.464.234-2.167-.058-.878-.41-1.7-.995-2.341a4.93 4.93 0 00-2.05-1.172c-.82-.176-1.639-.117-2.399.117-.76.234-1.464.644-1.99 1.23-.118.117-.235.234-.401.3-.117.06-.3.117-.468.117h-.06zM12 0c-4.418 0-8 3.582-8 8 0 1.41.365 2.73 1.008 3.885.644-1.155 1.58-2.091 2.735-2.735A7.947 7.947 0 0112 8c1.47 0 2.837.398 4.008 1.092a7.994 7.994 0 013.992-1.092c4.418 0 8-3.582 8-8s-3.582-8-8-8z"/></svg>
+              <span>Android APK</span>
+            </div>
+            <div class="badge-item disabled">
+              <svg class="badge-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.21.67-2.93 1.49-.62.69-1.16 1.84-1.01 2.96 1.12.09 2.27-.57 2.95-1.39z"/></svg>
+              <span>iOS (Upcoming)</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="hero-visual">
+          <div class="phone-mockup-wrapper">
+            <div class="phone-mockup">
+              <div class="phone-speaker"></div>
+              <div class="phone-screen">
+                <!-- Chat Screen UI Header -->
+                <div class="phone-screen-header">
+                  <div class="avatar">M</div>
+                  <div class="user-info">
+                    <span class="name">My Memory</span>
+                    <span class="status">✓ Online (Offline-First)</span>
+                  </div>
+                </div>
+                <!-- Chat Screen UI Body -->
+                <div class="phone-chat-body">
+                  <div class="chat-date">Today</div>
+                  
+                  <div class="chat-bubble user">
+                    <div class="bubble-content">
+                      Hey, remember to call the project sponsor today at 6:00 PM.
+                    </div>
+                    <div class="bubble-time">10:42 AM</div>
+                  </div>
+                  
+                  <div class="chat-bubble system">
+                    <div class="bubble-content">
+                      <strong class="text-pink">✓ Noted</strong><br>
+                      Reminder scheduled for 6:00 PM.
+                    </div>
+                    <div class="bubble-time">10:42 AM</div>
+                  </div>
+
+                  <div class="chat-bubble user">
+                    <div class="bubble-content">
+                      Here is the project proposal PDF.
+                      <div class="file-attachment">
+                        <div class="file-icon">📄</div>
+                        <div class="file-meta">
+                          <span class="file-name">Proposal_V2.pdf</span>
+                          <span class="file-size">2.4 MB</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="bubble-time">10:45 AM</div>
+                  </div>
+                </div>
+                <!-- Chat Screen UI Input -->
+                <div class="phone-chat-input">
+                  <div class="input-placeholder">Type to remember...</div>
+                  <div class="send-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Live Simulator Section -->
+  <section class="demo-section" id="demo">
+    <div class="container">
+      <div class="section-header">
+        <div class="badge">Interactive Demo</div>
+        <h2>Test Memzy's Reminder Engine</h2>
+        <p>Type a sentence specifying a task and a time. Watch Memzy parse the details instantly and schedule a notification simulation.</p>
+      </div>
+
+      <div class="simulator-card glass-panel">
+        <div class="simulator-ui">
+          <div class="chat-container" id="sim-chat-box">
+            <div class="chat-bubble system">
+              <div class="bubble-content">
+                👋 Hello! I am Memzy. Try typing something like:<br>
+                <em>"Buy groceries tomorrow at 8:00 PM"</em> or <em>"Submit assignment at 10 AM"</em>.
+              </div>
+            </div>
+          </div>
+          
+          <form class="chat-input-area" id="sim-form">
+            <input type="text" id="sim-input" class="chat-input" placeholder="Type a reminder message here..." autocomplete="off" required>
+            <button type="submit" class="chat-submit-btn">
+              <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bento Grid Features Section -->
+  <section class="features-section" id="features">
+    <div class="container">
+      <div class="section-header">
+        <div class="badge">Features</div>
+        <h2>Designed to Fit Your Flow</h2>
+        <p>Inspired by the gorgeous Stitch UI, Memzy combines high-fidelity visuals with robust utility.</p>
+      </div>
+
+      <div class="bento-grid">
+        <!-- Card 1 -->
+        <div class="bento-card glass-panel">
+          <div class="icon-wrapper bg-purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <h3>Chat-Based Storage</h3>
+          <p>Ditch traditional notebooks. Organise your texts, websites, documents, and media within intuitive personal chat channels.</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bento-card glass-panel">
+          <div class="icon-wrapper bg-pink">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <h3>Auto-Reminder Extraction</h3>
+          <p>Our intelligent local parser extracts deadlines and times from sentences automatically, setting up native notifications instantly.</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="bento-card glass-panel col-span-2">
+          <div class="bento-card-flex">
+            <div class="bento-card-text">
+              <div class="icon-wrapper bg-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/>
+                </svg>
+              </div>
+              <h3>Forward to Memzy</h3>
+              <p>Found something interesting in Chrome, Twitter, or WhatsApp? Just share the link or text directly with Memzy to store it instantly without leaving your current app.</p>
+            </div>
+            <div class="bento-visual">
+              <div class="sharing-pill">🔗 chrome_link.com -> 🟣 Memzy</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="bento-card glass-panel">
+          <div class="icon-wrapper bg-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <h3>100% Offline & Private</h3>
+          <p>Everything is saved locally using Hive high-performance database blocks. No data ever leaves your device.</p>
+        </div>
+
+        <!-- Card 5 -->
+        <div class="bento-card glass-panel">
+          <div class="icon-wrapper bg-orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/>
+            </svg>
+          </div>
+          <h3>Bento Media Grid</h3>
+          <p>Quickly filter and browse all images, links, documents, and reminders from a clean, categorised layout inside each chat.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About Us Section -->
+  <section class="about-section" id="about">
+    <div class="container">
+      <div class="about-grid">
+        <div class="about-text">
+          <div class="badge">About Us</div>
+          <h2>Simplifying How You Remember</h2>
+          <p>
+            Memzy was created out of a simple frustration: saving links to WhatsApp self-chats, writing ideas in scattered notes apps, and screenshotting things that get buried in our galleries.
+          </p>
+          <p>
+            Our mission is to build a unified space that fits your existing habits. We believe the easiest interface is a chat window. By combining a conversational interface with local natural language parsing, Memzy converts casual typing into structured, actionable memory notes.
+          </p>
+          <div class="team-quote">
+            <p>"We designed Memzy to be beautiful, fast, and above all, completely offline. Your personal memories are yours alone."</p>
+          </div>
+        </div>
+        <div class="about-stats-panel glass-panel">
+          <div class="stat-item">
+            <span class="stat-num">100%</span>
+            <span class="stat-lbl">Privacy - Local Hive DB</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">0ms</span>
+            <span class="stat-lbl">Cloud Latency</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">⚡</span>
+            <span class="stat-lbl">Instant Reminder Parser</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Terms & Conditions / Privacy Section -->
+  <section class="terms-section" id="terms">
+    <div class="container">
+      <div class="section-header">
+        <div class="badge">Legal Agreement</div>
+        <h2>Terms & Conditions & Privacy Policy</h2>
+        <p>Please read these terms carefully before using the Memzy mobile application.</p>
+      </div>
+
+      <div class="terms-container glass-panel">
+        <div class="terms-tabs">
+          <button class="tab-btn active" id="btn-terms" onclick="switchTab(event, 'tab-terms')">Terms & Conditions</button>
+          <button class="tab-btn" id="btn-privacy" onclick="switchTab(event, 'tab-privacy')">Privacy Policy</button>
+        </div>
+        
+        <div class="terms-content">
+          <!-- Terms of Service content -->
+          <div id="tab-terms" class="tab-pane active">
+            <h3>1. Acceptance of Terms</h3>
+            <p>By downloading or using the Memzy mobile application ("the App"), you agree to be bound by these Terms and Conditions. If you do not agree, please do not use the App.</p>
+            
+            <h3>2. Description of Service</h3>
+            <p>Memzy is a local, chat-based personal memory assistant tool that facilitates content storage (text, links, files) and schedules notification reminders based on user-typed text. The scheduling occurs on your local device via local OS notification managers.</p>
+            
+            <h3>3. Local Device Usage & Responsibilities</h3>
+            <p>All data is processed and stored locally on your device. You are solely responsible for:</p>
+            <ul>
+              <li>Backing up your device database files. We do not provide cloud backup services in the current version, and lost data cannot be recovered by us.</li>
+              <li>Providing necessary OS permissions (e.g., notification permissions, alarm scheduling, storage access) for full feature availability.</li>
+              <li>Keeping your device secure to protect the privacy of your stored data.</li>
+            </ul>
+
+            <h3>4. Fair Use & Prohibitions</h3>
+            <p>You agree not to modify, reverse engineer, or decompile the App. You may not distribute custom/modified builds representing themselves as the official Memzy app.</p>
+
+            <h3>5. Limitation of Liability</h3>
+            <p>The App is provided "as is" and "as available". We do not guarantee that reminders will trigger with 100% accuracy (e.g. if the OS terminates background processes, or if the device runs out of power). We shall not be liable for any lost data, missed alarms, or damages arising out of your use of the App.</p>
+
+            <h3>6. Modifications to Terms</h3>
+            <p>We reserves the right to modify these Terms at any time. Your continued use of the App following any changes indicates your acceptance of the revised terms.</p>
+          </div>
+
+          <!-- Privacy Policy content -->
+          <div id="tab-privacy" class="tab-pane">
+            <h3>1. Our Commitment to Privacy</h3>
+            <p>Your privacy is our core priority. Memzy is designed to operate 100% offline-first. We believe that your notes, files, thoughts, and schedules should remain completely private to you.</p>
+
+            <h3>2. Data Collection & Transmission</h3>
+            <p><strong>No personal data is collected or sent to our servers.</strong> We do not track:</p>
+            <ul>
+              <li>The content of your chats, text messages, links, or files.</li>
+              <li>Your reminder times, titles, or active schedules.</li>
+              <li>Your device IP address, location, or telemetry identifiers.</li>
+            </ul>
+
+            <h3>3. Storage Infrastructure (Hive DB)</h3>
+            <p>All of your data is stored locally in high-performance encrypted/unencrypted database boxes on your device via Hive storage frameworks. The files remain on your device sandboxed storage and are deleted when the App is uninstalled.</p>
+
+            <h3>4. Third-Party Integrations</h3>
+            <p>The App does not share your information with third-party networks or analytics services. All link parsing and date extraction happens strictly on the local device runtime environment.</p>
+
+            <h3>5. Security</h3>
+            <p>Because all data remains local, the security of your data depends on your physical device security. We recommend using biometric locks (fingerprint, Face ID) or device-level passwords to secure your device.</p>
+
+            <h3>6. Contact Information</h3>
+            <p>If you have any questions or feedback regarding our offline privacy architecture, you can contact us at: <a href="mailto:support@memzy.app" class="link-highlight">support@memzy.app</a>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom">
+        <p>&copy; 2026 Memzy. Built with ❤️ and Flutter. All rights reserved.</p>
+        <div class="footer-links">
+          <a href="#features">Features</a>
+          <a href="#about">About</a>
+          <a href="#terms">Terms</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Script File -->
+  <script src="script.js"></script>
+</body>
+</html>

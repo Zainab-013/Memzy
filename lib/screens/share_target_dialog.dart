@@ -125,11 +125,11 @@ class ShareTargetDialog extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => PasscodeView(
+                                  builder: (routeContext) => PasscodeView(
                                     mode: 'verify',
                                     title: "Unlock ${chat.title}",
                                     onSuccess: (passcode) async {
-                                      Navigator.pop(context); // pop passcode view
+                                      Navigator.pop(routeContext); // pop passcode view
                                       
                                       if (sharedType == 'text') {
                                         await chatProvider.sendMessage(
@@ -157,7 +157,7 @@ class ShareTargetDialog extends StatelessWidget {
                                         );
                                       }
                                     },
-                                    onCancel: () => Navigator.pop(context),
+                                    onCancel: () => Navigator.pop(routeContext),
                                   ),
                                 ),
                               );

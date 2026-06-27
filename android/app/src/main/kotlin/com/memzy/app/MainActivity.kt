@@ -1,4 +1,4 @@
-package com.stitch.memzy.memzy
+package com.memzy.app
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

@@ -58,20 +58,28 @@ class _ConversationScreenState extends State<ConversationScreen> {
   bool _isUnlocked = false;
 
   final List<SelectedAttachment> _selectedAttachments = [];
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    _focusNode.addListener(_onFocusChange);
     // Scroll to bottom on initial build
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(isAnimated: false));
   }
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
     _textController.dispose();
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() {});
   }
 
   void _scrollToBottom({bool isAnimated = true}) {
@@ -298,6 +306,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
         messages.where((m) => _selectedMessageIds.contains(m.id)).every((m) => m.isPinned == true);
 
     final pinnedMessages = messages.where((m) => m.isPinned == true).toList();
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0 || _focusNode.hasFocus || _isSearching;
 
     final isSingleUserTextSelected = _selectedMessageIds.length == 1 && () {
       final selectedList = messages.where((m) => _selectedMessageIds.contains(m.id)).toList();
@@ -499,9 +508,18 @@ class _ConversationScreenState extends State<ConversationScreen> {
               ],
             ),
       body: SafeArea(
-        child: Column(
-          children: [
-            if (pinnedMessages.isNotEmpty)
+        bottom: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final bool isSmallHeight = constraints.maxHeight < 550.0;
+            final adjustedHeight = constraints.maxHeight > 3.0
+                ? constraints.maxHeight - 3.0
+                : constraints.maxHeight;
+            return SizedBox(
+              height: adjustedHeight,
+              child: Column(
+                children: [
+            if (pinnedMessages.isNotEmpty && !isKeyboardOpen && !isSmallHeight)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
@@ -567,28 +585,20 @@ class _ConversationScreenState extends State<ConversationScreen> {
             // Chat messages canvas
             Expanded(
               child: displayedMessages.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 48,
-                            color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _searchQuery.isEmpty
-                                ? "Start your memory chain.\nSend files or set reminders directly."
-                                : "No matching messages found.",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                  ? (_searchQuery.isEmpty
+                      ? const SizedBox.shrink() // Clean empty space like WhatsApp
+                      : Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              "No matching messages found.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    )
+                        ))
                   : ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -623,7 +633,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
 
             // Suggestion chips
-            if (suggestionChips.isNotEmpty)
+            if (suggestionChips.isNotEmpty && !isKeyboardOpen && !isSmallHeight)
               Container(
                 height: 48,
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -664,7 +674,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             // Attachment Preview Card
             if (_selectedAttachments.isNotEmpty)
               Container(
-                height: 90,
+                height: isSmallHeight ? 70.0 : 90.0,
                 margin: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
@@ -674,9 +684,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     return Stack(
                       children: [
                         Container(
-                          width: 100,
-                          height: 80,
-                          margin: const EdgeInsets.only(right: 12, top: 8),
+                          width: isSmallHeight ? 80.0 : 100.0,
+                          height: isSmallHeight ? 60.0 : 80.0,
+                          margin: EdgeInsets.only(right: 12, top: isSmallHeight ? 4.0 : 8.0),
                           decoration: BoxDecoration(
                             color: isDark ? StitchTheme.darkSurfaceContainerLow : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
@@ -703,7 +713,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                                         color: item.type == 'pdf'
                                             ? Colors.red
                                             : Colors.blue,
-                                        size: 28,
+                                        size: isSmallHeight ? 20.0 : 28.0,
                                       ),
                                       const SizedBox(height: 4),
                                       Padding(
@@ -755,7 +765,12 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
             // Bottom Input footer bar
             Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: EdgeInsets.only(
+                left: 12.0,
+                right: 12.0,
+                top: isSmallHeight ? 6.0 : 12.0,
+                bottom: (isSmallHeight ? 6.0 : 12.0) + (isKeyboardOpen ? 0.0 : MediaQuery.of(context).padding.bottom),
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -776,6 +791,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                           Expanded(
                             child: TextField(
                               controller: _textController,
+                              focusNode: _focusNode,
                               keyboardType: TextInputType.multiline,
                               maxLines: null,
                               decoration: InputDecoration(
@@ -816,8 +832,11 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
+    },
+  ),
+),
+);
   }
 
   Widget _buildMessageBubble(Message msg, bool isDark, ChatProvider provider) {
@@ -1080,9 +1099,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
         ? const Color(0xFF1E3A8A)
         : (isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary);
 
-    // Matches http://, https://, and www. links
+    // Matches http://, https://, www., and standard domain names without scheme/www prefix (e.g. google.com)
     final RegExp urlRegExp = RegExp(
-      r'\b(https?:\/\/[^\s]+|www\.[^\s]+)',
+      r'\b((https?:\/\/|www\.)[^\s/$.?#].[^\s]*|[a-zA-Z0-9.-]+\.(com|org|net|edu|gov|io|co|in|info|me|us|uk|ca|au|app|dev|xyz|page|link|net)\b[^\s]*)',
       caseSensitive: false,
     );
 
@@ -1115,7 +1134,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       final String trailingPunctuation = rawUrlStr.substring(urlEndIndex);
 
       String launchUrlStr = urlStr;
-      if (urlStr.toLowerCase().startsWith('www.')) {
+      if (!urlStr.toLowerCase().startsWith('http://') && !urlStr.toLowerCase().startsWith('https://')) {
         launchUrlStr = 'https://$urlStr';
       }
 
