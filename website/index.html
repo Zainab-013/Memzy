@@ -40,6 +40,8 @@
         <a href="#features" class="nav-link">Features</a>
         <a href="#demo" class="nav-link">Try Simulator</a>
         <a href="#about" class="nav-link">About Us</a>
+        <a href="#faqs" class="nav-link">FAQs</a>
+        <a href="#feedback" class="nav-link">Feedback & Support</a>
         <a href="#terms" class="nav-link">Terms & Conditions</a>
       </nav>
 
@@ -277,6 +279,110 @@
             <span class="stat-num">⚡</span>
             <span class="stat-lbl">Instant Reminder Parser</span>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQs Section -->
+  <section class="faqs-section" id="faqs">
+    <div class="container">
+      <div class="section-header">
+        <div class="badge">FAQs</div>
+        <h2>Frequently Asked Questions</h2>
+        <p>Got questions about Memzy? We have answers to the most common queries.</p>
+      </div>
+
+      <div class="faqs-grid">
+        <div class="faq-item glass-panel">
+          <button class="faq-question">
+            <span>How does automatic reminder extraction work?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-answer">
+            <p>Our intelligent local parser scans the text of your notes for date and time indicators (e.g. "at 10:00 PM", "tomorrow at 9 AM"). Once identified, Memzy configures native system notifications for that exact local time, completely offline.</p>
+          </div>
+        </div>
+
+        <div class="faq-item glass-panel">
+          <button class="faq-question">
+            <span>Is my data really private and offline?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-answer">
+            <p>Yes. Privacy is our core pillar. Memzy operates 100% offline. We do not run sync servers, analytics trackers, or database clouds. All messages, files, and links remain strictly sandboxed on your device storage via Hive DB.</p>
+          </div>
+        </div>
+
+        <div class="faq-item glass-panel">
+          <button class="faq-question">
+            <span>Can I export or backup my saved memories?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-answer">
+            <p>Currently, backups are tied to your device's native OS backups. We are actively developing a manual export/import tool that will allow you to backup chats as encrypted files or PDF transcripts.</p>
+          </div>
+        </div>
+
+        <div class="faq-item glass-panel">
+          <button class="faq-question">
+            <span>How does the "Forward to Memzy" feature work?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-answer">
+            <p>By leveraging system share sheets, you can select Memzy when sharing links in Chrome, documents in Files, or images in your gallery. A dialog pops up asking you to select one of your chats, and it inserts the content instantly.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Support & Feedback Section -->
+  <section class="feedback-section" id="feedback">
+    <div class="container">
+      <div class="section-header">
+        <div class="badge">Support</div>
+        <h2>Feedback & Support</h2>
+        <p>Found a bug, want to suggest a feature, or need help? Send us a message.</p>
+      </div>
+
+      <div class="feedback-container glass-panel">
+        <form class="feedback-form" id="feedback-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="fb-name">Full Name</label>
+              <input type="text" id="fb-name" class="form-input" placeholder="Your name" required>
+            </div>
+            <div class="form-group">
+              <label for="fb-email">Email Address</label>
+              <input type="email" id="fb-email" class="form-input" placeholder="name@example.com" required>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="fb-type">Feedback Category</label>
+            <select id="fb-type" class="form-input" required>
+              <option value="" disabled selected>Select category...</option>
+              <option value="bug">Report a Bug / Issue</option>
+              <option value="feature">Suggest a Feature</option>
+              <option value="general">General Question</option>
+              <option value="other">Other Feedback</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="fb-message">Message</label>
+            <textarea id="fb-message" class="form-input" rows="5" placeholder="Write your feedback details here..." required></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Feedback</button>
+        </form>
+
+        <div class="feedback-success" id="feedback-success">
+          <div class="success-icon">✓</div>
+          <h3>Feedback Received!</h3>
+          <p>Thank you for reaching out. We appreciate your suggestions and report, and will look into it shortly.</p>
+          <button class="btn btn-secondary btn-sm" onclick="resetFeedbackForm()">Send Another Message</button>
         </div>
       </div>
     </div>

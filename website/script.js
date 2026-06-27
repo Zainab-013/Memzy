@@ -168,3 +168,34 @@ function addChatBubble(content, sender) {
 function autoScrollChat() {
   simChatBox.scrollTop = simChatBox.scrollHeight;
 }
+
+// FAQ Accordion Toggling
+const faqQuestions = document.querySelectorAll('.faq-question');
+faqQuestions.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.parentElement;
+    item.classList.toggle('active');
+  });
+});
+
+// Feedback Form handling
+const feedbackForm = document.getElementById('feedback-form');
+const feedbackSuccess = document.getElementById('feedback-success');
+
+if (feedbackForm && feedbackSuccess) {
+  feedbackForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    // Animate hide form and show success
+    feedbackForm.style.display = 'none';
+    feedbackSuccess.style.display = 'flex';
+  });
+}
+
+function resetFeedbackForm() {
+  if (feedbackForm && feedbackSuccess) {
+    feedbackForm.reset();
+    feedbackForm.style.display = 'flex';
+    feedbackSuccess.style.display = 'none';
+  }
+}
