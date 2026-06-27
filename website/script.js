@@ -186,9 +186,43 @@ if (feedbackForm && feedbackSuccess) {
   feedbackForm.addEventListener('submit', (e) => {
     e.preventDefault();
     
-    // Animate hide form and show success
-    feedbackForm.style.display = 'none';
-    feedbackSuccess.style.display = 'flex';
+    const submitBtn = feedbackForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Sending...';
+    submitBtn.disabled = true;
+    
+    const name = document.getElementById('fb-name').value;
+    const email = document.getElementById('fb-email').value;
+    const category = document.getElementById('fb-type').value;
+    const message = document.getElementById('fb-message').value;
+    
+    fetch('https://formsubmit.co/ajax/shaikhyasmeen78600@gmail.com', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        Name: name,
+        Email: email,
+        Category: category,
+        Message: message
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Show success screen
+      feedbackForm.style.display = 'none';
+      feedbackSuccess.style.display = 'flex';
+    })
+    .catch(error => {
+      console.error('Error submitting feedback:', error);
+      alert('Oops! Something went wrong. Please try again or email directly.');
+    })
+    .finally(() => {
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    });
   });
 }
 
