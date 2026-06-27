@@ -11,6 +11,7 @@ import '../widgets/passcode_view.dart';
 import 'conversation_screen.dart';
 import 'archived_chats_screen.dart';
 import '../services/notification_service.dart';
+import '../services/database_service.dart';
 
 class ChatsHomeScreen extends StatefulWidget {
   const ChatsHomeScreen({super.key});
@@ -34,6 +35,10 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
 
   Future<void> _checkBatteryOptimization() async {
     if (!Platform.isAndroid) return;
+
+    // Do not show the prompt if user has already seen and dismissed/configured it
+    final bool alreadyWarned = DatabaseService.settingsBox.get('has_dismissed_battery_warning', defaultValue: false) as bool;
+    if (alreadyWarned) return;
     
     final bool isIgnoring = await NotificationService.isIgnoringBatteryOptimizations();
     if (!isIgnoring && mounted) {
@@ -111,7 +116,10 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () async {
+                Navigator.pop(context);
+                await DatabaseService.settingsBox.put('has_dismissed_battery_warning', true);
+              },
               child: Text(
                 'Later',
                 style: TextStyle(
@@ -129,6 +137,7 @@ class _ChatsHomeScreenState extends State<ChatsHomeScreen> {
               ),
               onPressed: () async {
                 Navigator.pop(context);
+                await DatabaseService.settingsBox.put('has_dismissed_battery_warning', true);
                 await NotificationService.requestIgnoreBatteryOptimizations();
               },
               child: const Text('Configure Now', style: TextStyle(fontWeight: FontWeight.bold)),
