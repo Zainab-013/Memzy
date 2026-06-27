@@ -144,149 +144,151 @@ class _PasscodeViewState extends State<PasscodeView> with SingleTickerProviderSt
         ),
         child: SafeArea(
           child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Header
-              const SizedBox(height: 32),
-              Icon(
-                Icons.lock,
-                size: 44,
-                color: primaryColor,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                promptTitle,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: onSurfaceColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40.0),
-                child: Text(
-                  promptSubtitle,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: secondaryTextColor,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Header
+                  const SizedBox(height: 16),
+                  Icon(
+                    Icons.lock,
+                    size: 44,
+                    color: primaryColor,
                   ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Animated Dots
-              AnimatedBuilder(
-                animation: _shakeController,
-                builder: (context, child) {
-                  final double offsetValue = math.sin(_shakeController.value * math.pi * 6) * 16.0 * (1.0 - _shakeController.value);
-                  return Transform.translate(
-                    offset: Offset(offsetValue, 0),
-                    child: child,
-                  );
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (index) {
-                    bool active = index < _enteredPin.length;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.symmetric(horizontal: 12),
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: active ? primaryColor : Colors.transparent,
-                        border: Border.all(
-                          color: active ? primaryColor : (isDark ? Colors.white24 : Colors.grey.shade400),
-                          width: 2,
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-              // Error Message
-              SizedBox(
-                height: 24,
-                child: Text(
-                  _errorMessage,
-                  style: const TextStyle(
-                    color: StitchTheme.error,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Keyboard
-              Expanded(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 280),
-                  alignment: Alignment.center,
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 1.0,
+                  const SizedBox(height: 16),
+                  Text(
+                    promptTitle,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: onSurfaceColor,
                     ),
-                    itemCount: 12,
-                    itemBuilder: (context, index) {
-                      if (index == 9) {
-                        // Left bottom action: Cancel or Clear
-                        return widget.onCancel != null
-                            ? _buildIconButton(
-                                icon: Icons.close,
-                                bgColor: keyboardBtnBg,
-                                borderColor: keyboardBtnBorder,
-                                iconColor: onSurfaceColor,
-                                onTap: widget.onCancel!,
-                              )
-                            : const SizedBox.shrink();
-                      } else if (index == 10) {
-                        // Number 0
-                        return _buildNumButton(
-                          "0",
-                          bgColor: keyboardBtnBg,
-                          borderColor: keyboardBtnBorder,
-                          textColor: onSurfaceColor,
-                        );
-                      } else if (index == 11) {
-                        // Backspace
-                        return _buildIconButton(
-                          icon: Icons.backspace_outlined,
-                          bgColor: keyboardBtnBg,
-                          borderColor: keyboardBtnBorder,
-                          iconColor: onSurfaceColor,
-                          onTap: _onBackspace,
-                        );
-                      } else {
-                        // Numbers 1-9
-                        String digit = (index + 1).toString();
-                        return _buildNumButton(
-                          digit,
-                          bgColor: keyboardBtnBg,
-                          borderColor: keyboardBtnBorder,
-                          textColor: onSurfaceColor,
-                        );
-                      }
-                    },
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                    child: Text(
+                      promptSubtitle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Animated Dots
+                  AnimatedBuilder(
+                    animation: _shakeController,
+                    builder: (context, child) {
+                      final double offsetValue = math.sin(_shakeController.value * math.pi * 6) * 16.0 * (1.0 - _shakeController.value);
+                      return Transform.translate(
+                        offset: Offset(offsetValue, 0),
+                        child: child,
+                      );
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(4, (index) {
+                        bool active = index < _enteredPin.length;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          margin: const EdgeInsets.symmetric(horizontal: 12),
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: active ? primaryColor : Colors.transparent,
+                            border: Border.all(
+                              color: active ? primaryColor : (isDark ? Colors.white24 : Colors.grey.shade400),
+                              width: 2,
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                  // Error Message
+                  SizedBox(
+                    height: 24,
+                    child: Text(
+                      _errorMessage,
+                      style: const TextStyle(
+                        color: StitchTheme.error,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Keyboard
+                  Container(
+                    constraints: const BoxConstraints(maxWidth: 280),
+                    alignment: Alignment.center,
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 1.0,
+                      ),
+                      itemCount: 12,
+                      itemBuilder: (context, index) {
+                        if (index == 9) {
+                          // Left bottom action: Cancel or Clear
+                          return widget.onCancel != null
+                              ? _buildIconButton(
+                                  icon: Icons.close,
+                                  bgColor: keyboardBtnBg,
+                                  borderColor: keyboardBtnBorder,
+                                  iconColor: onSurfaceColor,
+                                  onTap: widget.onCancel!,
+                                )
+                              : const SizedBox.shrink();
+                        } else if (index == 10) {
+                          // Number 0
+                          return _buildNumButton(
+                            "0",
+                            bgColor: keyboardBtnBg,
+                            borderColor: keyboardBtnBorder,
+                            textColor: onSurfaceColor,
+                          );
+                        } else if (index == 11) {
+                          // Backspace
+                          return _buildIconButton(
+                            icon: Icons.backspace_outlined,
+                            bgColor: keyboardBtnBg,
+                            borderColor: keyboardBtnBorder,
+                            iconColor: onSurfaceColor,
+                            onTap: _onBackspace,
+                          );
+                        } else {
+                          // Numbers 1-9
+                          String digit = (index + 1).toString();
+                          return _buildNumButton(
+                            digit,
+                            bgColor: keyboardBtnBg,
+                            borderColor: keyboardBtnBorder,
+                            textColor: onSurfaceColor,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         ),
-      ),
     ),
   );
 }

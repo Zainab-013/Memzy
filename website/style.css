@@ -1109,6 +1109,11 @@ select.form-input {
   background-size: 1.25rem;
 }
 
+select.form-input option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
 .feedback-success {
   display: none;
   flex-direction: column;

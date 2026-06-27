@@ -233,3 +233,19 @@ function resetFeedbackForm() {
     feedbackSuccess.style.display = 'none';
   }
 }
+
+// Auto-switch tabs based on URL Hash
+window.addEventListener('DOMContentLoaded', () => {
+  const hash = window.location.hash;
+  if (hash === '#privacy' || hash === '#privacy-policy') {
+    const privacyBtn = document.getElementById('btn-privacy');
+    if (privacyBtn) {
+      privacyBtn.click();
+    }
+  } else if (hash === '#terms' || hash === '#terms-and-conditions') {
+    const termsBtn = document.getElementById('btn-terms');
+    if (termsBtn) {
+      termsBtn.click();
+    }
+  }
+});

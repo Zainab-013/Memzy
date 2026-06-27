@@ -591,62 +591,7 @@ class MemoryInsightsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildChartBar({
-    required String label,
-    required int value,
-    required int maxValue,
-    required Color color,
-    required bool isDark,
-  }) {
-    // Determine visual scale height (max value represents 100px)
-    final double barHeight = maxValue > 0 ? (value / maxValue) * 100 : 0.0;
 
-    return Column(
-      children: [
-        Text(
-          value.toString(),
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: isDark ? StitchTheme.darkOnSurface : StitchTheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 6),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          width: 24,
-          height: barHeight > 4 ? barHeight : 4,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [
-                color.withValues(alpha: 0.3),
-                color,
-              ],
-            ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.25),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildDoubleChartBar({
     required String label,

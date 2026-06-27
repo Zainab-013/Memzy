@@ -50,30 +50,43 @@ class _ChatAttachmentsScreenState extends State<ChatAttachmentsScreen> {
     }
 
     try {
-      Directory? downloadsDir;
+      String targetPath = '';
+      bool success = false;
+
+      // Try public Download folder on Android first
       if (Platform.isAndroid) {
-        downloadsDir = Directory('/storage/emulated/0/Download');
-        if (!await downloadsDir.exists()) {
-          downloadsDir = await getDownloadsDirectory();
+        try {
+          final publicDir = Directory('/storage/emulated/0/Download');
+          if (await publicDir.exists()) {
+            targetPath = '${publicDir.path}/${msg.fileName ?? "downloaded_file"}';
+            await sourceFile.copy(targetPath);
+            success = true;
+          }
+        } catch (_) {
+          // Suppress public download copy failure and proceed to fallback
         }
-      } else {
-        downloadsDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
       }
 
-      if (downloadsDir != null) {
-        final targetPath = '${downloadsDir.path}/${msg.fileName ?? "downloaded_file"}';
-        await sourceFile.copy(targetPath);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Saved to: $targetPath'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
+      // Fallback if public download failed or on iOS/Desktop
+      if (!success) {
+        Directory? fallbackDir;
+        if (Platform.isAndroid) {
+          fallbackDir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+        } else {
+          fallbackDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
         }
-      } else {
-        throw Exception("Could not find download directory.");
+        targetPath = '${fallbackDir.path}/${msg.fileName ?? "downloaded_file"}';
+        await sourceFile.copy(targetPath);
+        success = true;
+      }
+
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved to: $targetPath'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {

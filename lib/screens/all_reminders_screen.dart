@@ -778,12 +778,14 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
                           });
                         } else if (!_completingReminderIds.contains(reminder.id)) {
                           if (!isDone) {
-                            _showScatterEffect(cardContext, leftIndicatorColor);
+                            final RenderBox? box = cardContext.findRenderObject() as RenderBox?;
+                            final cardSize = box?.size ?? const Size(300, 80);
+                            _showScatterEffect(cardContext, leftIndicatorColor, cardSize);
                           }
                           setState(() {
                             _completingReminderIds.add(reminder.id);
                           });
-                          Future.delayed(const Duration(milliseconds: 600), () {
+                          Future.delayed(const Duration(milliseconds: 100), () {
                             if (provider.reminders.any((r) => r.id == reminder.id) && mounted) {
                               provider.toggleReminderCompletion(reminder.id);
                               setState(() {
@@ -991,24 +993,18 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
             ),
         );
 
-        return AnimatedCrossFade(
-          duration: const Duration(milliseconds: 600),
-          firstCurve: Curves.easeIn,
-          secondCurve: Curves.easeOut,
-          sizeCurve: Curves.easeInOut,
-          crossFadeState: isCompleting ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          firstChild: cardWidget,
-          secondChild: const SizedBox(width: double.infinity, height: 0),
-        );
+        if (isCompleting) {
+          return const SizedBox(width: double.infinity, height: 0);
+        }
+        return cardWidget;
       },
     );
   }
 
-  void _showScatterEffect(BuildContext context, Color color) {
+  void _showScatterEffect(BuildContext context, Color color, Size cardSize) {
     final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
-    final size = renderBox.size;
     final position = renderBox.localToGlobal(Offset.zero);
 
     late OverlayEntry overlayEntry;
@@ -1017,11 +1013,12 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
         return Positioned(
           left: position.dx,
           top: position.dy,
-          width: size.width,
-          height: size.height,
+          width: cardSize.width,
+          height: cardSize.height,
           child: IgnorePointer(
             child: ScatterParticlesWidget(
               color: color,
+              cardSize: cardSize,
               onComplete: () {
                 overlayEntry.remove();
               },
@@ -1336,12 +1333,14 @@ class _AllRemindersScreenState extends State<AllRemindersScreen> {
 }
 
 class Particle {
+  final Offset startOffset;
   final double angle;
   final double speed;
   final double size;
   final Color color;
 
   Particle({
+    required this.startOffset,
     required this.angle,
     required this.speed,
     required this.size,
@@ -1351,11 +1350,13 @@ class Particle {
 
 class ScatterParticlesWidget extends StatefulWidget {
   final Color color;
+  final Size cardSize;
   final VoidCallback onComplete;
 
   const ScatterParticlesWidget({
     super.key,
     required this.color,
+    required this.cardSize,
     required this.onComplete,
   });
 
@@ -1372,7 +1373,7 @@ class _ScatterParticlesWidgetState extends State<ScatterParticlesWidget> with Si
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 1200),
     );
 
     _generateParticles();
@@ -1396,13 +1397,19 @@ class _ScatterParticlesWidgetState extends State<ScatterParticlesWidget> with Si
       const Color(0xFF60A5FA),
       const Color(0xFF8B5CF6),
       const Color(0xFFF59E0B),
+      widget.color.withValues(alpha: 0.4),
     ];
 
-    for (int i = 0; i < 24; i++) {
+    for (int i = 0; i < 80; i++) {
+      // Random starting offset within the card dimensions
+      final double rx = rand.nextDouble() * widget.cardSize.width;
+      final double ry = rand.nextDouble() * widget.cardSize.height;
+
       _particles.add(Particle(
+        startOffset: Offset(rx, ry),
         angle: rand.nextDouble() * 2 * math.pi,
-        speed: 40.0 + rand.nextDouble() * 140.0,
-        size: 3.0 + rand.nextDouble() * 5.0,
+        speed: 50.0 + rand.nextDouble() * 150.0,
+        size: 2.0 + rand.nextDouble() * 5.0,
         color: colors[rand.nextInt(colors.length)],
       ));
     }
@@ -1438,18 +1445,17 @@ class _ScatterPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
     final paint = Paint()..style = PaintingStyle.fill;
 
     for (var particle in particles) {
       final double distance = particle.speed * progress;
-      final double x = center.dx + math.cos(particle.angle) * distance;
-      final double y = center.dy + math.sin(particle.angle) * distance;
+      final double x = particle.startOffset.dx + math.cos(particle.angle) * distance;
+      final double y = particle.startOffset.dy + math.sin(particle.angle) * distance;
 
       final double opacity = math.max(0.0, 1.0 - progress);
       paint.color = particle.color.withValues(alpha: opacity);
 
-      final double currentSize = particle.size * (1.0 - (progress * 0.4));
+      final double currentSize = particle.size * (1.0 - progress);
 
       canvas.drawCircle(Offset(x, y), currentSize, paint);
     }

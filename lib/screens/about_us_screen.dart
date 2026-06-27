@@ -12,6 +12,7 @@ class AboutUsScreen extends StatelessWidget {
     required String title,
     required String content,
     required bool isDark,
+    required String webUrl,
   }) {
     showDialog(
       context: context,
@@ -44,27 +45,29 @@ class AboutUsScreen extends StatelessWidget {
                 // Dialog Header
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      Icons.description_outlined,
-                      color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
-                    ),
-                    title: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: onSurfaceColor,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.description_outlined,
+                        color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                      color: outlineColor,
-                    ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: onSurfaceColor,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                        color: outlineColor,
+                      ),
+                    ],
                   ),
                 ),
                 const Divider(height: 1),
@@ -83,27 +86,51 @@ class AboutUsScreen extends StatelessWidget {
                   ),
                 ),
                 const Divider(height: 1),
-                // Dialog Action
+                // Dialog Actions
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: StitchTheme.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.open_in_browser, size: 18),
+                        label: const Text('View Official Web Version'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: StitchTheme.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        onPressed: () async {
+                          final Uri webUri = Uri.parse(webUrl);
+                          try {
+                            if (await canLaunchUrl(webUri)) {
+                              await launchUrl(webUri, mode: LaunchMode.externalApplication);
+                            }
+                          } catch (e) {
+                            // ignore
+                          }
+                        },
                       ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: StitchTheme.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -124,6 +151,7 @@ class AboutUsScreen extends StatelessWidget {
 
         return Dialog(
           backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
           child: Container(
             decoration: BoxDecoration(
               color: cardBgColor,
@@ -139,76 +167,90 @@ class AboutUsScreen extends StatelessWidget {
                 color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
               ),
             ),
-            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.support_agent_rounded,
-                    color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
-                  ),
-                  title: Text(
-                    'Customer Support',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: onSurfaceColor,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    color: outlineColor,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Need assistance? Our support team is here to help with any questions, feedback, or suggestions about Memzy.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.5,
-                    color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Contact Details card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade200,
-                    ),
-                  ),
+                // Dialog Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
                   child: Row(
                     children: [
-                      const Icon(Icons.mail_outline_rounded, size: 20, color: StitchTheme.primary),
-                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.support_agent_rounded,
+                        color: isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary,
+                      ),
+                      const SizedBox(width: 16),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Text(
+                          'Customer Support',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: onSurfaceColor,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                        color: outlineColor,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // Dialog Content
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Need assistance? Our support team is here to help with any questions, feedback, or suggestions about Memzy.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: isDark ? StitchTheme.darkOnSurfaceVariant : StitchTheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Contact Details card
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade200,
+                          ),
+                        ),
+                        child: Row(
                           children: [
-                            Text(
-                              'Email Address',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: outlineColor,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'shaikhyasmeen78600@gmail.com',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: onSurfaceColor,
+                            const Icon(Icons.mail_outline_rounded, size: 20, color: StitchTheme.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Email Address',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white60 : Colors.black54,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'shaikhyasmeen78600@gmail.com',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: StitchTheme.primary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -217,65 +259,72 @@ class AboutUsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: Text(
-                          'Cancel',
-                          style: TextStyle(color: outlineColor),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: StitchTheme.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                const Divider(height: 1),
+                // Dialog Actions
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: () async {
-                          Navigator.of(context).pop();
-                          final Uri emailLaunchUri = Uri(
-                            scheme: 'mailto',
-                            path: 'shaikhyasmeen78600@gmail.com',
-                            queryParameters: {
-                              'subject': 'Memzy Support & Feedback',
-                            },
-                          );
-                          try {
-                            if (await canLaunchUrl(emailLaunchUri)) {
-                              await launchUrl(emailLaunchUri);
-                            } else {
-                              throw 'Could not launch email client';
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Could not open email app. Please write to shaikhyasmeen78600@gmail.com'),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        child: const Text(
-                          'Send Email',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: isDark ? Colors.white70 : Colors.black54,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: StitchTheme.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () async {
+                            Navigator.of(context).pop();
+                            final Uri emailLaunchUri = Uri(
+                              scheme: 'mailto',
+                              path: 'shaikhyasmeen78600@gmail.com',
+                              queryParameters: {
+                                'subject': 'Memzy Support & Feedback',
+                              },
+                            );
+                            try {
+                              if (await canLaunchUrl(emailLaunchUri)) {
+                                await launchUrl(emailLaunchUri);
+                              } else {
+                                throw 'Could not launch email client';
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Could not open email app. Please write to shaikhyasmeen78600@gmail.com'),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          child: const Text(
+                            'Send Email',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -407,6 +456,50 @@ class AboutUsScreen extends StatelessWidget {
                         color: subtitleColor,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    const Divider(height: 1, thickness: 0.5),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        final Uri webUri = Uri.parse('https://memzy-omega.vercel.app');
+                        try {
+                          if (await canLaunchUrl(webUri)) {
+                            await launchUrl(webUri, mode: LaunchMode.externalApplication);
+                          }
+                        } catch (e) {
+                          // ignore
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.language,
+                              size: 16,
+                              color: StitchTheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Visit Official Website',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: StitchTheme.primary,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 12,
+                              color: StitchTheme.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -471,6 +564,7 @@ class AboutUsScreen extends StatelessWidget {
                         title: 'Terms of Service',
                         content: _fullTermsContent,
                         isDark: isDark,
+                        webUrl: 'https://memzy-omega.vercel.app/#terms',
                       ),
                     ),
                     _buildDivider(isDark),
@@ -482,6 +576,7 @@ class AboutUsScreen extends StatelessWidget {
                         title: 'Privacy Policy',
                         content: _fullPrivacyContent,
                         isDark: isDark,
+                        webUrl: 'https://memzy-omega.vercel.app/#privacy',
                       ),
                     ),
                     _buildDivider(isDark),

@@ -72,34 +72,12 @@ class MainActivity : FlutterActivity() {
                 "requestIgnoreBatteryOptimizations" -> {
                     try {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            try {
-                                val intent = Intent().apply {
-                                    action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-                                    data = Uri.parse("package:$packageName")
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                }
-                                startActivity(intent)
-                                result.success(true)
-                            } catch (e: Exception) {
-                                try {
-                                    // Fallback 1: Open App Details Settings page directly
-                                    val intent = Intent().apply {
-                                        action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-                                        data = Uri.parse("package:$packageName")
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    }
-                                    startActivity(intent)
-                                    result.success(true)
-                                } catch (e2: Exception) {
-                                    // Fallback 2: Open general battery optimization settings list
-                                    val intent = Intent().apply {
-                                        action = Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    }
-                                    startActivity(intent)
-                                    result.success(true)
-                                }
+                            val intent = Intent().apply {
+                                action = Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
                             }
+                            startActivity(intent)
+                            result.success(true)
                         } else {
                             result.success(false)
                         }

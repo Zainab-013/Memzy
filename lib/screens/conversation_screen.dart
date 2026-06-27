@@ -1088,119 +1088,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   Widget _buildLinkifiedText(String text, bool isMe, bool isDark) {
-    final baseStyle = TextStyle(
-      fontSize: 15,
-      color: isMe
-          ? StitchTheme.userBubbleText
-          : StitchTheme.systemBubbleText,
-    );
-
-    final linkColor = isMe
-        ? const Color(0xFF1E3A8A)
-        : (isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary);
-
-    // Matches http://, https://, www., and standard domain names without scheme/www prefix (e.g. google.com)
-    final RegExp urlRegExp = RegExp(
-      r'\b((https?:\/\/|www\.)[^\s/$.?#].[^\s]*|[a-zA-Z0-9.-]+\.(com|org|net|edu|gov|io|co|in|info|me|us|uk|ca|au|app|dev|xyz|page|link|net)\b[^\s]*)',
-      caseSensitive: false,
-    );
-
-    final List<TextSpan> spans = [];
-    final Iterable<RegExpMatch> matches = urlRegExp.allMatches(text);
-
-    int lastIndex = 0;
-    for (final match in matches) {
-      if (match.start > lastIndex) {
-        spans.add(TextSpan(
-          text: text.substring(lastIndex, match.start),
-          style: baseStyle,
-        ));
-      }
-
-      final String rawUrlStr = match.group(0)!;
-
-      // Separate actual URL from trailing punctuation
-      int urlEndIndex = rawUrlStr.length;
-      while (urlEndIndex > 0) {
-        final char = rawUrlStr[urlEndIndex - 1];
-        if (char == '.' || char == ',' || char == ')' || char == '}' || char == ']' || char == '?' || char == '!') {
-          urlEndIndex--;
-        } else {
-          break;
-        }
-      }
-
-      final String urlStr = rawUrlStr.substring(0, urlEndIndex);
-      final String trailingPunctuation = rawUrlStr.substring(urlEndIndex);
-
-      String launchUrlStr = urlStr;
-      if (!urlStr.toLowerCase().startsWith('http://') && !urlStr.toLowerCase().startsWith('https://')) {
-        launchUrlStr = 'https://$urlStr';
-      }
-
-      final recognizer = TapGestureRecognizer()
-        ..onTap = () async {
-          final Uri? uri = Uri.tryParse(launchUrlStr);
-          if (uri != null) {
-            try {
-              // Direct launch to bypass Android 11+ Package Visibility query restrictions
-              final launched = await launchUrl(
-                uri,
-                mode: LaunchMode.externalApplication,
-              );
-              if (!launched) {
-                await launchUrl(
-                  uri,
-                  mode: LaunchMode.platformDefault,
-                );
-              }
-            } catch (e) {
-              debugPrint("Failed to launch URL: $e");
-              try {
-                await launchUrl(uri);
-              } catch (fallbackError) {
-                debugPrint("Fallback launch failed: $fallbackError");
-              }
-            }
-          }
-        };
-
-      spans.add(TextSpan(
-        text: urlStr,
-        style: baseStyle.copyWith(
-          color: linkColor,
-          decoration: TextDecoration.underline,
-        ),
-        recognizer: recognizer,
-      ));
-
-      if (trailingPunctuation.isNotEmpty) {
-        spans.add(TextSpan(
-          text: trailingPunctuation,
-          style: baseStyle,
-        ));
-      }
-
-      lastIndex = match.end;
-    }
-
-    if (lastIndex < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastIndex),
-        style: baseStyle,
-      ));
-    }
-
-    if (spans.isEmpty) {
-      return Text(text, style: baseStyle);
-    }
-
-    return RichText(
-      text: TextSpan(
-        style: baseStyle,
-        children: spans,
-      ),
-    );
+    return LinkifiedTextWidget(text: text, isMe: isMe, isDark: isDark);
   }
 
   Widget _buildBubbleContent(Message msg, bool isDark) {
@@ -1727,6 +1615,157 @@ class _ConversationScreenState extends State<ConversationScreen> {
       }
     }
   }
+}
 
+class LinkifiedTextWidget extends StatefulWidget {
+  final String text;
+  final bool isMe;
+  final bool isDark;
 
+  const LinkifiedTextWidget({
+    super.key,
+    required this.text,
+    required this.isMe,
+    required this.isDark,
+  });
+
+  @override
+  State<LinkifiedTextWidget> createState() => _LinkifiedTextWidgetState();
+}
+
+class _LinkifiedTextWidgetState extends State<LinkifiedTextWidget> {
+  final List<TapGestureRecognizer> _recognizers = [];
+
+  @override
+  void dispose() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = TextStyle(
+      fontSize: 15,
+      color: widget.isMe
+          ? StitchTheme.userBubbleText
+          : StitchTheme.systemBubbleText,
+    );
+
+    final linkColor = widget.isMe
+        ? const Color(0xFF1E3A8A)
+        : (widget.isDark ? StitchTheme.primaryFixedDim : StitchTheme.primary);
+
+    // Matches http://, https://, www., and standard domain names without scheme/www prefix (e.g. google.com)
+    final RegExp urlRegExp = RegExp(
+      r'\b((https?:\/\/|www\.)[^\s/$.?#].[^\s]*|[a-zA-Z0-9.-]+\.(com|org|net|edu|gov|io|co|in|info|me|us|uk|ca|au|app|dev|xyz|page|link|net)\b[^\s]*)',
+      caseSensitive: false,
+    );
+
+    // Dispose old recognizers from previous build to prevent accumulation
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+
+    final List<TextSpan> spans = [];
+    final Iterable<RegExpMatch> matches = urlRegExp.allMatches(widget.text);
+
+    int lastIndex = 0;
+    for (final match in matches) {
+      if (match.start > lastIndex) {
+        spans.add(TextSpan(
+          text: widget.text.substring(lastIndex, match.start),
+          style: baseStyle,
+        ));
+      }
+
+      final String rawUrlStr = match.group(0)!;
+
+      // Separate actual URL from trailing punctuation
+      int urlEndIndex = rawUrlStr.length;
+      while (urlEndIndex > 0) {
+        final char = rawUrlStr[urlEndIndex - 1];
+        if (char == '.' || char == ',' || char == ')' || char == '}' || char == ']' || char == '?' || char == '!') {
+          urlEndIndex--;
+        } else {
+          break;
+        }
+      }
+
+      final String urlStr = rawUrlStr.substring(0, urlEndIndex);
+      final String trailingPunctuation = rawUrlStr.substring(urlEndIndex);
+
+      String launchUrlStr = urlStr;
+      if (!urlStr.toLowerCase().startsWith('http://') && !urlStr.toLowerCase().startsWith('https://')) {
+        launchUrlStr = 'https://$urlStr';
+      }
+
+      final recognizer = TapGestureRecognizer()
+        ..onTap = () async {
+          final Uri? uri = Uri.tryParse(launchUrlStr);
+          if (uri != null) {
+            try {
+              // Direct launch to bypass Android 11+ Package Visibility query restrictions
+              final launched = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+              if (!launched) {
+                await launchUrl(
+                  uri,
+                  mode: LaunchMode.platformDefault,
+                );
+              }
+            } catch (e) {
+              debugPrint("Failed to launch URL: $e");
+              try {
+                await launchUrl(uri);
+              } catch (fallbackError) {
+                debugPrint("Fallback launch failed: $fallbackError");
+              }
+            }
+          }
+        };
+
+      _recognizers.add(recognizer);
+
+      spans.add(TextSpan(
+        text: urlStr,
+        style: baseStyle.copyWith(
+          color: linkColor,
+          decoration: TextDecoration.underline,
+        ),
+        recognizer: recognizer,
+      ));
+
+      if (trailingPunctuation.isNotEmpty) {
+        spans.add(TextSpan(
+          text: trailingPunctuation,
+          style: baseStyle,
+        ));
+      }
+
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < widget.text.length) {
+      spans.add(TextSpan(
+        text: widget.text.substring(lastIndex),
+        style: baseStyle,
+      ));
+    }
+
+    if (spans.isEmpty) {
+      return Text(widget.text, style: baseStyle);
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: baseStyle,
+        children: spans,
+      ),
+    );
+  }
 }
